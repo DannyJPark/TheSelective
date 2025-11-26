@@ -6,15 +6,6 @@ We provide two variants:
 - **TheSelective-A**: Atom-centric cross-attention architecture
 - **TheSelective-G**: Global cross-attention architecture (1p_all)
 
-## Key Innovation
-
-Unlike existing target-aware molecule generation methods that only consider on-target binding affinity, **TheSelective** introduces a **dual-head architecture** that simultaneously optimizes:
-
-1. **Head 1 (On-Target)**: Maximize binding affinity with protein-ligand interactions
-2. **Head 2 (Off-Target)**: Minimize binding affinity without protein-ligand interactions
-
-This enables **selectivity-guided generation**, producing molecules with high specificity.
-
 ### TheSelective-A vs TheSelective-G
 
 | Feature | TheSelective-A | TheSelective-G |
@@ -52,7 +43,8 @@ pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
 ```
 
 ## Data Preparation
-[https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link]
+data.zip : [https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link]
+tmscore_extreme_pairs.txt : [https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing]
 Download datasets and place them in `./data/`:
 
 ```
@@ -89,11 +81,11 @@ python scripts/sample_diffusion.py \
     --use_lmdb_only \
     --data_id 0 \
     --off_target_ids 50 \
-    --guide_mode joint_on_off_no_interaction_sequential \
+    --guide_mode head2_only_sequential \
     --w_on 2.0 \
     --w_off 1.0 \
-    --head1_type_grad_weight 100 \
-    --head1_pos_grad_weight 25 \
+    --head1_type_grad_weight 0 \
+    --head1_pos_grad_weight 0 \
     --head2_type_grad_weight 100 \
     --head2_pos_grad_weight 0.0 \
     --batch_size 4 \
@@ -105,11 +97,11 @@ python scripts/sample_diffusion.py \
     --use_lmdb_only \
     --data_id 0 \
     --off_target_ids 50 \
-    --guide_mode joint_on_off_no_interaction_sequential \
+    --guide_mode head2_only_sequential \
     --w_on 2.0 \
     --w_off 1.0 \
-    --head1_type_grad_weight 100 \
-    --head1_pos_grad_weight 25 \
+    --head1_type_grad_weight 0 \
+    --head1_pos_grad_weight 0 \
     --head2_type_grad_weight 100 \
     --head2_pos_grad_weight 0.0 \
     --batch_size 4 \
@@ -120,11 +112,11 @@ python scripts/sample_diffusion.py \
 
 | Parameter | Description | Recommended |
 |-----------|-------------|-------------|
-| `--guide_mode` | Selectivity guidance strategy | `joint_on_off_no_interaction_sequential` |
+| `--guide_mode` | Selectivity guidance strategy | `head2_only_sequential` |
 | `--w_on` | On-target weight (higher = stronger binding) | 2.0 |
 | `--w_off` | Off-target weight (higher = weaker binding) | 1.0 |
-| `--head1_type_grad_weight` | Head1 atom type gradient | 100 |
-| `--head1_pos_grad_weight` | Head1 position gradient | 25 |
+| `--head1_type_grad_weight` | Head1 atom type gradient | 0 |
+| `--head1_pos_grad_weight` | Head1 position gradient | 0 |
 | `--head2_type_grad_weight` | Head2 atom type gradient | 100 |
 | `--head2_pos_grad_weight` | Head2 position gradient | 0.0 |
 
@@ -160,7 +152,7 @@ bash scripts/run_theselective_g.sh
 ```
 
 ### Result Analysis
-[https://drive.google.com/file/d/13p3URTI3nps-TdV3aALRGPFHYIYoeaEj/view?usp=drive_link]
+results in paper : [https://drive.google.com/file/d/13p3URTI3nps-TdV3aALRGPFHYIYoeaEj/view?usp=drive_link]
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
 python analysis/analyze_tmscore_pairs_high_fixed.py
