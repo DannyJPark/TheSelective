@@ -17,7 +17,7 @@ fi
 
 # Activate conda environment
 source ~/anaconda3/etc/profile.d/conda.sh
-conda activate kgdiff
+conda activate theselective
 
 MODEL_NAME="head2_atom_attention"
 CONFIG_FILE="./configs/sampling_head2_atom_attention.yml"
