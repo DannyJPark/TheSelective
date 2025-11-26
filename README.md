@@ -15,31 +15,6 @@ Unlike existing target-aware molecule generation methods that only consider on-t
 
 This enables **selectivity-guided generation**, producing molecules with high specificity.
 
-## Architecture
-
-```
-                    ┌─────────────────────────────────────┐
-                    │     UniTransformer Backbone         │
-                    │   (Protein-Ligand Interaction)      │
-                    └─────────────────────────────────────┘
-                                      │
-              ┌───────────────────────┴───────────────────────┐
-              ▼                                               ▼
-    ┌───────────────────┐                         ┌───────────────────┐
-    │   Head 1          │                         │   Head 2          │
-    │   (On-Target)     │                         │   (Off-Target)    │
-    │   WITH P-L        │                         │   WITHOUT P-L     │
-    │   Interaction     │                         │   Interaction     │
-    └───────────────────┘                         └───────────────────┘
-              │                                               │
-              └───────────────────────┬───────────────────────┘
-                                      ▼
-                         ┌─────────────────────┐
-                         │ Selectivity Guidance│
-                         │   On↑ / Off↓        │
-                         └─────────────────────┘
-```
-
 ### TheSelective-A vs TheSelective-G
 
 | Feature | TheSelective-A | TheSelective-G |
@@ -77,7 +52,7 @@ pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
 ```
 
 ## Data Preparation
-
+[https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link]
 Download datasets and place them in `./data/`:
 
 ```
@@ -185,7 +160,7 @@ bash scripts/run_theselective_g.sh
 ```
 
 ### Result Analysis
-
+[https://drive.google.com/file/d/13p3URTI3nps-TdV3aALRGPFHYIYoeaEj/view?usp=drive_link]
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
 python analysis/analyze_tmscore_pairs_high_fixed.py
@@ -236,31 +211,6 @@ TheSelective/
     ├── evaluation/                    # Evaluation metrics
     └── ...                            # Utility functions
 ```
-
-## Key Differences from KGDiff
-
-| Feature | KGDiff | TheSelective |
-|---------|--------|--------------|
-| Architecture | Single-head | **Dual-head** |
-| Objective | On-target ↑ only | **On-target ↑ + Off-target ↓** |
-| Off-target | No consideration | **Explicit minimization** |
-| Guidance | `joint` | **`joint_on_off_no_interaction_sequential`** |
-| Cross-attention | None | **Atom-centric (A) / Global (G)** |
-
-## Citation
-
-```bibtex
-@article{theselective2024,
-  title={TheSelective: Dual-Head Architecture for Selective Molecule Generation},
-  author={Anonymous},
-  journal={Under Review},
-  year={2024}
-}
-```
-
-## License
-
-MIT License - See LICENSE file for details.
 
 ## Acknowledgments
 
