@@ -17,7 +17,7 @@ fi
 
 # Activate conda environment
 source ~/anaconda3/etc/profile.d/conda.sh
-conda activate kgdiff
+conda activate theselective
 
 MODEL_NAME="head2_1p_all_attention"
 CONFIG_FILE="./configs/sampling_head2_1p_all_attention.yml"
