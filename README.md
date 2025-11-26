@@ -43,8 +43,12 @@ pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
 ```
 
 ## Data Preparation
-data.zip : [https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link]
-tmscore_extreme_pairs.txt : [https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing]
+data.zip : 
+https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link
+
+tmscore_extreme_pairs.txt :
+https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing
+
 Download datasets and place them in `./data/`:
 
 ```
