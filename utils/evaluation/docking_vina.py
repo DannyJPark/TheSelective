@@ -147,7 +147,7 @@ class VinaDock(object):
 class VinaDockingTask(BaseDockingTask):
 
     @classmethod
-    def from_generated_data(cls, data, protein_root='./scratch2/data/crossdocked', **kwargs):
+    def from_generated_data(cls, data, protein_root='./data/crossdocked', **kwargs):
         # load original pdb
         protein_fn = os.path.join(
             os.path.dirname(data.ligand_filename),
@@ -158,7 +158,7 @@ class VinaDockingTask(BaseDockingTask):
         return cls(protein_path, ligand_rdmol, **kwargs)
 
     @classmethod
-    def from_original_data(cls, data, ligand_root='./scratch2/data/crossdocked_pocket10', protein_root='./scratch2/data/crossdocked',
+    def from_original_data(cls, data, ligand_root='./data/crossdocked_pocket10', protein_root='./data/crossdocked',
                            **kwargs):
         protein_fn = os.path.join(
             os.path.dirname(data.ligand_filename),
@@ -171,7 +171,7 @@ class VinaDockingTask(BaseDockingTask):
         return cls(protein_path, ligand_rdmol, **kwargs)
 
     @classmethod
-    def from_generated_mol(cls, ligand_rdmol, protein_filename, protein_root='./scratch2/data/crossdocked', **kwargs):
+    def from_generated_mol(cls, ligand_rdmol, protein_filename, protein_root='./data/crossdocked', **kwargs):
         # load original pdb
         protein_path = os.path.join(protein_root, protein_filename)
         return cls(protein_path, ligand_rdmol, **kwargs)
@@ -241,15 +241,20 @@ class VinaDockingTask(BaseDockingTask):
             prot.get_pdbqt(protein_pdbqt)
 
         dock = VinaDock(ligand_pdbqt, os.path.abspath(protein_pdbqt))
-        dock.pocket_center, dock.box_size = self.center, [self.size_x, self.size_y, self.size_z]
+        # Convert center to list of floats for Vina compatibility
+        if hasattr(self.center, 'tolist'):
+            pocket_center = self.center.tolist()
+        else:
+            pocket_center = [float(x) for x in self.center]
+        dock.pocket_center, dock.box_size = pocket_center, [float(self.size_x), float(self.size_y), float(self.size_z)]
         score, pose = dock.dock(score_func='vina', mode=mode, exhaustiveness=exhaustiveness, save_pose=True, **kwargs)
 
         if save_path is not None:
-            # 1. PDBQT 포맷의 포즈를 SDF 포맷으로 변환
+            # 1. Convert PDBQT pose to SDF format
             ligand_pose_sdf = tempfile.NamedTemporaryFile(suffix='.sdf')
             subprocess.run(f'obabel {ligand_pdbqt} -O {ligand_pose_sdf.name}', shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            # 2. 변환된 SDF에서 분자 구조 로드 및 PDB로 저장
+            # 2. Load molecule from SDF and save as PDB
             supplier = Chem.SDMolSupplier(ligand_pose_sdf.name, removeHs=False)
             mol = next(iter(supplier), None)
 
@@ -257,10 +262,10 @@ class VinaDockingTask(BaseDockingTask):
                 ligand_pose_pdb = tempfile.NamedTemporaryFile(suffix='.pdb')
                 Chem.MolToPDBFile(mol, ligand_pose_pdb.name)
 
-                # 3. 단백질과 리간드 PDB 파일 결합
+                # 3. Combine protein and ligand PDB files
                 with open(save_path, 'w') as f:
-                    shutil.copyfileobj(open(self.receptor_path, 'r'), f) # 단백질 복사
-                    shutil.copyfileobj(open(ligand_pose_pdb.name, 'r'), f) # 리간드 추가
+                    shutil.copyfileobj(open(self.receptor_path, 'r'), f)
+                    shutil.copyfileobj(open(ligand_pose_pdb.name, 'r'), f)
 
         return [{'affinity': score, 'pose': pose}]
 

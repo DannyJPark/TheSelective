@@ -13,6 +13,9 @@ from openbabel import openbabel as ob
 from scipy.spatial.distance import pdist
 from scipy.spatial.distance import squareform
 
+# Global periodic table for valence calculations
+pt = Chem.GetPeriodicTable()
+
 
 class MolReconsError(Exception):
     pass
@@ -74,6 +77,8 @@ def make_obmol(xyz, atomic_numbers, atom_affinity):
     return mol, atoms
 
 
+
+
 def connect_the_dots(mol, atoms, indicators, covalent_factor=1.3):
     '''Custom implementation of ConnectTheDots.  This is similar to
     OpenBabel's version, but is more willing to make long bonds 
@@ -86,8 +91,8 @@ def connect_the_dots(mol, atoms, indicators, covalent_factor=1.3):
     """
     for now, indicators only include 'is_aromatic'
     """
-    pt = Chem.GetPeriodicTable()
 
+   
     if len(atoms) == 0:
         return
 
@@ -97,13 +102,15 @@ def connect_the_dots(mol, atoms, indicators, covalent_factor=1.3):
     coords = np.array([(a.GetX(), a.GetY(), a.GetZ()) for a in atoms])
     dists = squareform(pdist(coords))
     # types = [struct.channels[t].name for t in struct.c]
-
+    
+     # Create bonds based on covalent radius:
     for i, j in itertools.combinations(range(len(atoms)), 2):
         a = atoms[i]
         b = atoms[j]
-        a_r = ob.GetCovalentRad(a.GetAtomicNum()) * covalent_factor
+        # If distance < 1.3 * sum of covalent radii, create bond
+        a_r = ob.GetCovalentRad(a.GetAtomicNum()) * covalent_factor # 1.3
         b_r = ob.GetCovalentRad(b.GetAtomicNum()) * covalent_factor
-        if dists[i, j] < a_r + b_r:
+        if dists[i, j] < a_r + b_r: 
             flag = 0
             if indicators and indicators[i] and indicators[j]:
                 flag = ob.OB_AROMATIC_BOND
@@ -159,6 +166,8 @@ def connect_the_dots(mol, atoms, indicators, covalent_factor=1.3):
         # that are excessively far away (0.45 from ConnectTheDots)
         # get bonds to be less than max allowed
         # also remove tight angles, because that is what ConnectTheDots does
+        # Stretch - remove bonds stretched >1.2
+        # small_angle - remove bonds forming angles <60
         if stretch > 1.2 or forms_small_angle(a1, a2) or forms_small_angle(a2, a1):
             # don't fragment the molecule
             if not reachable(a1, a2):
@@ -193,7 +202,7 @@ def connect_the_dots(mol, atoms, indicators, covalent_factor=1.3):
 
     mol.EndModify()
 
-
+## Convert OpenBabel mol to RDKit mol for validation/post-processing
 def convert_ob_mol_to_rd_mol(ob_mol, struct=None):
     '''Convert OBMol to RDKit mol, fixing up issues'''
     ob_mol.DeleteHydrogens()
@@ -474,6 +483,9 @@ def reconstruct_from_generated(xyz, atomic_nums, aromatic=None, atom_affinity=[]
     else:
         indicators = aromatic
 
+    # Step 1: Create OpenBabel molecule object (make_obmol)
+    # Create OpenBabel molecule from atom coordinates and atomic numbers
+    # Set position (x,y,z) and atomic number for each atom
     mol, atoms = make_obmol(xyz, atomic_nums, atom_affinity)
     fixup(atoms, mol, indicators)
 

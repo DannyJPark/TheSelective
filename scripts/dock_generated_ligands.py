@@ -26,7 +26,6 @@ from utils.evaluation import analyze, scoring_func, eval_atom_type, eval_bond_le
 from utils import misc, reconstruct, transforms
 
 # Additional imports for visualization
-from rdkit import Chem
 import pickle
 import shutil
 
@@ -179,10 +178,13 @@ def generate_txt_summary(json_path, output_path=None, experiment_name=None):
         print(f"Warning: Could not generate TXT summary: {e}")
         return None
 
-# Configuration
-MULTIPRO_VALIDATION_TEST_SET = "/home/ktori1361/KGDiff/scratch2/data/multipro_validation_test_set"
-CROSSDOCK_LMDB_PATH = "/home/ktori1361/KGDiff/scratch2/data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb"
-CROSSDOCK_SPLIT_FILE = "/home/ktori1361/KGDiff/scratch2/data/crossdocked_pocket10_pose_split.pt"
+# Configuration - can be overridden via environment variables
+MULTIPRO_VALIDATION_TEST_SET = os.environ.get(
+    "MULTIPRO_VALIDATION_TEST_SET", "./data/multipro_validation_test_set")
+CROSSDOCK_LMDB_PATH = os.environ.get(
+    "CROSSDOCK_LMDB_PATH", "./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb")
+CROSSDOCK_SPLIT_FILE = os.environ.get(
+    "CROSSDOCK_SPLIT_FILE", "./data/crossdocked_pocket10_pose_split.pt")
 
 # Global cache for CrossDock dataset
 _CROSSDOCK_TEST_SET_CACHE = None
@@ -211,7 +213,7 @@ def print_ring_ratio(all_ring_sizes, logger):
 
 def load_multipro_validation_info():
     """Load multi-protein validation test set info"""
-    info_file = "/home/ktori1361/KGDiff/multipro_validation_info.json"
+    info_file = os.environ.get("MULTIPRO_VALIDATION_INFO", "./data/multipro_validation_info.json")
     if not os.path.exists(info_file):
         raise FileNotFoundError(f"Multi-protein validation info not found: {info_file}")
 
@@ -354,6 +356,7 @@ def get_protein_info_by_ids(validation_ids, use_lmdb_only=False, transform=None)
         print(f"Loading validation_id {val_id}: {protein_dir_name} (data_id: {entry['idx']})")
 
         # Find actual protein and ligand files
+        # Use glob to filter by file extension
         pdb_files = glob(os.path.join(protein_dir, "*.pdb"))
         if not pdb_files:
             print(f"Error: No PDB files found in {protein_dir}")
@@ -363,10 +366,18 @@ def get_protein_info_by_ids(validation_ids, use_lmdb_only=False, transform=None)
         sdf_files = glob(os.path.join(protein_dir, "*.sdf"))
         ref_ligand_sdf = sdf_files[0] if sdf_files else None
 
-        # Load reference ligand center for automatic translation
+        # Load reference ligand center and molecule for automatic translation and box sizing
         ref_ligand_center = None
+        ref_ligand_mol = None
         if ref_ligand_sdf:
             ref_ligand_center = load_reference_ligand_center(ref_ligand_sdf)
+            # Also load the full molecule for box size calculation
+            try:
+                suppl = Chem.SDMolSupplier(ref_ligand_sdf, removeHs=False)
+                ref_ligand_mol = next((m for m in suppl if m is not None), None)
+            except Exception as e:
+                print(f"    Warning: Could not load reference ligand molecule: {e}")
+                ref_ligand_mol = None
 
         # Convert .pdb to .pdbqt for docking
         protein_pdbqt = protein_pdb.replace('.pdb', '.pdbqt')
@@ -381,6 +392,7 @@ def get_protein_info_by_ids(validation_ids, use_lmdb_only=False, transform=None)
             'protein_pdbqt': protein_pdbqt,
             'ref_ligand': ref_ligand_sdf,
             'ref_ligand_center': ref_ligand_center,
+            'ref_ligand_mol': ref_ligand_mol,  # Reference ligand molecule for box size calculation
             'ref_affinity': None,  # Will be loaded from SDF if needed
             'data_idx': None  # Not needed for this mapping
         }
@@ -410,12 +422,25 @@ def get_protein_info_from_crossdock_lmdb(data_ids, transform=None):
             # CrossDock ligand_filename format: "PDBID_chain_rec/PDBID_chain_rec_PDBID_lig_csd_0.sdf"
             protein_name = data.ligand_filename.split('/')[0] if '/' in data.ligand_filename else data.ligand_filename[:10]
 
-        # Get reference ligand center from data
+        # Get reference ligand center and positions from data
         ref_ligand_center = None
+        ref_ligand_mol = None
+        ref_ligand_pos = None
         if hasattr(data, 'ligand_pos'):
             ligand_pos = data.ligand_pos.cpu().numpy() if hasattr(data.ligand_pos, 'cpu') else data.ligand_pos
             ligand_element = data.ligand_element.cpu().numpy() if hasattr(data.ligand_element, 'cpu') else data.ligand_element
             ref_ligand_center = calculate_center_of_mass(ligand_pos, ligand_element)
+            ref_ligand_pos = ligand_pos  # Store positions for box size calculation
+
+            # Try to load reference ligand from SDF file for box size calculation
+            if hasattr(data, 'ligand_filename'):
+                ref_sdf_path = os.path.join('./data/crossdocked_pocket10', data.ligand_filename)
+                if os.path.exists(ref_sdf_path):
+                    try:
+                        suppl = Chem.SDMolSupplier(ref_sdf_path, removeHs=False)
+                        ref_ligand_mol = next((m for m in suppl if m is not None), None)
+                    except Exception as e:
+                        print(f"    Warning: Could not load reference ligand from SDF: {e}")
 
         protein_info = {
             'data_id': data_id,
@@ -426,6 +451,8 @@ def get_protein_info_from_crossdock_lmdb(data_ids, transform=None):
             'protein_pdbqt': None,
             'ref_ligand': None,
             'ref_ligand_center': ref_ligand_center,
+            'ref_ligand_mol': ref_ligand_mol,  # Reference ligand molecule for box size calculation
+            'ref_ligand_pos': ref_ligand_pos,  # Reference ligand positions (fallback for box size)
             'ref_affinity': None,
             'lmdb_data': data  # Store the actual data for docking
         }
@@ -489,8 +516,44 @@ def get_random_protein_info(exclude_validation_id, num_off_targets, use_lmdb_onl
 
     return get_protein_info_by_ids(selected_validation_ids, use_lmdb_only=False, transform=transform)
 
+
+
+def calculate_box_size_from_ref_ligand(ref_ligand_mol=None, ref_ligand_pos=None, buffer=10.0, round_to=10):
+    """
+    Calculate docking box size from reference ligand (like dock_hwanhee.py)
+
+    Args:
+        ref_ligand_mol: RDKit molecule of reference ligand (preferred)
+        ref_ligand_pos: numpy array of reference ligand positions (fallback)
+        buffer: Buffer to add to box size (default: 10.0)
+        round_to: Round up to nearest multiple (default: 10)
+
+    Returns:
+        box_size: (size_x, size_y, size_z) tuple
+    """
+    if ref_ligand_mol is not None:
+        conf = ref_ligand_mol.GetConformer()
+        coords = np.array([list(conf.GetAtomPosition(i)) for i in range(ref_ligand_mol.GetNumAtoms())])
+    elif ref_ligand_pos is not None:
+        coords = np.array(ref_ligand_pos)
+    else:
+        raise ValueError("Either ref_ligand_mol or ref_ligand_pos must be provided")
+
+    # Calculate size like dock_hwanhee.py
+    size = np.max(coords, axis=0) - np.min(coords, axis=0)
+    size = np.ceil(size / round_to) * round_to + buffer
+
+    return tuple(size)
+
+
 def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, ligand_exp_atom, atom_enc_mode, protein_info_list, target_types, docking_mode='vina_dock', exhaustiveness=16, result_file_path=None):
-    """Dock a ligand to target proteins with individual translation for each target"""
+    """Dock a ligand to target proteins with individual translation for each target
+
+    For off-targets:
+    - Translate ligand to reference ligand center
+    - Set docking box center to reference ligand center (like dock_hwanhee.py)
+    - Set docking box size based on reference ligand size
+    """
     results = {}
     
     for protein_info, target_type in zip(protein_info_list, target_types):
@@ -505,7 +568,10 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                 print(f"    {target_type}: Using original generated coordinates (no translation)")
             else:
                 # Off-targets: Apply reference ligand alignment for better comparison
+                # Also use reference ligand for docking box (like dock_hwanhee.py)
                 target_ref_center = protein_info.get('ref_ligand_center')
+                ref_ligand_mol = protein_info.get('ref_ligand_mol')  # Reference ligand molecule for box size
+                ref_ligand_pos = protein_info.get('ref_ligand_pos')  # Fallback: reference ligand positions
 
                 if target_ref_center is not None:
                     # Calculate original ligand center
@@ -525,9 +591,22 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                     print(f"    Target reference center: [{target_ref_center[0]:.3f}, {target_ref_center[1]:.3f}, {target_ref_center[2]:.3f}]")
                     print(f"    Translation vector: [{translation_vector[0]:.3f}, {translation_vector[1]:.3f}, {translation_vector[2]:.3f}]")
                     print(f"    Distance to target reference: {distance_to_ref:.3f} Å")
+
+                    # Calculate box size from reference ligand (like dock_hwanhee.py)
+                    # Try ref_ligand_mol first, fallback to ref_ligand_pos
+                    if ref_ligand_mol is not None:
+                        ref_box_size = calculate_box_size_from_ref_ligand(ref_ligand_mol=ref_ligand_mol)
+                        print(f"    Reference-based box size (from mol): [{ref_box_size[0]:.1f}, {ref_box_size[1]:.1f}, {ref_box_size[2]:.1f}]")
+                    elif ref_ligand_pos is not None:
+                        ref_box_size = calculate_box_size_from_ref_ligand(ref_ligand_pos=ref_ligand_pos)
+                        print(f"    Reference-based box size (from pos): [{ref_box_size[0]:.1f}, {ref_box_size[1]:.1f}, {ref_box_size[2]:.1f}]")
+                    else:
+                        ref_box_size = None
+                        print(f"    Warning: No reference ligand available for box size calculation")
                 else:
                     print(f"    Warning: No reference center found for {target_type} {protein_name}, using original coordinates")
                     translated_pos = original_ligand_pos
+                    ref_box_size = None
             
             # Reconstruct molecule with translated coordinates (following evaluate_diffusion.py pattern)
             try:
@@ -574,7 +653,7 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                 if hasattr(lmdb_data, 'ligand_filename'):
                     ligand_filename = lmdb_data.ligand_filename
                     protein_filename = os.path.basename(ligand_filename)[:10] + '.pdb'
-                    protein_root_dir = os.path.join('./scratch2/data/test_set/', os.path.dirname(ligand_filename))
+                    protein_root_dir = os.path.join('./data/test_set/', os.path.dirname(ligand_filename))
                     print(f"    LMDB mode - Using protein from ligand_filename: {protein_filename}")
                     print(f"    Protein root: {protein_root_dir}")
                 else:
@@ -588,19 +667,20 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                         'chem_results': chem_results
                     }
                     continue
+            ############ On-target Docking ##############
             elif target_type == 'on_target' and result_file_path:
                 # For on-target: Use the SAME protein file approach as evaluate_diffusion.py
                 try:
-                    # 1. result.pt 파일을 로드 하여 원본 'data' 객체에 접근
+                    # 1. Load result.pt to access original data object
                     # Load the result file to get original data
                     result_data = torch.load(result_file_path)
                     if 'data' in result_data and hasattr(result_data['data'], 'ligand_filename'):
                         ligand_filename = result_data['data'].ligand_filename
                         # Use evaluate_diffusion.py logic: ligand_filename[:10] + '.pdb'
 
-                        # 2. evaluate_diffusion.py와 동일한 방식으로 단백질 파일 경로
+                        # 2. Determine protein file path (same as evaluate_diffusion.py)
                         protein_filename = os.path.basename(ligand_filename)[:10] + '.pdb'
-                        protein_root_dir = os.path.join('./scratch2/data/test_set/', os.path.dirname(ligand_filename))
+                        protein_root_dir = os.path.join('./data/test_set/', os.path.dirname(ligand_filename))
                         print(f"    On-target using evaluate_diffusion.py protein path: {protein_filename}")
                         print(f"    Protein root: {protein_root_dir}")
                     else:
@@ -617,9 +697,37 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                 protein_filename = os.path.basename(protein_full_path)
                 protein_root_dir = os.path.dirname(protein_full_path)
 
-            vina_task = VinaDockingTask.from_generated_mol(
-                ligand_mol, protein_filename, protein_root=protein_root_dir
-            )
+            # Create VinaDockingTask with appropriate center and box size
+            # For off-targets: use reference ligand center and box size (like dock_hwanhee.py)
+            if target_type != 'on_target' and target_ref_center is not None:
+                # Off-target: Use reference ligand center as docking box center
+                # and reference ligand-based box size
+                protein_path = os.path.join(protein_root_dir, protein_filename)
+
+                # Convert numpy array to list for Vina compatibility
+                center_list = [float(x) for x in target_ref_center]
+
+                # Create VinaDockingTask with explicit center
+                vina_task = VinaDockingTask(
+                    protein_path=protein_path,
+                    ligand_rdmol=ligand_mol,
+                    center=center_list,  # Use reference ligand center as box center (as list)
+                    size_factor=None if ref_box_size else 1.0,  # Use fixed size if ref_box_size available
+                    buffer=5.0
+                )
+
+                # Override box size with reference ligand-based size if available
+                if ref_box_size is not None:
+                    # Convert to float for Vina compatibility
+                    vina_task.size_x = float(ref_box_size[0])
+                    vina_task.size_y = float(ref_box_size[1])
+                    vina_task.size_z = float(ref_box_size[2])
+                    print(f"    Off-target docking box: center={center_list}, size=[{vina_task.size_x}, {vina_task.size_y}, {vina_task.size_z}]")
+            else:
+                # On-target: Use ligand center as docking box center (original behavior)
+                vina_task = VinaDockingTask.from_generated_mol(
+                    ligand_mol, protein_filename, protein_root=protein_root_dir
+                )
             
             # Run docking based on mode (exactly following evaluate_diffusion.py pattern)
             vina_results = None
@@ -1023,12 +1131,35 @@ def main():
             
             # Load generated data (following evaluate_diffusion.py pattern)
             result = torch.load(result_file)
-            
-            # Load data using evaluate_diffusion.py pattern
-            all_pred_ligand_pos = result['pred_ligand_pos_traj']  # [num_samples, num_steps, num_atoms, 3]
-            all_pred_ligand_v = result['pred_ligand_v_traj']     # [num_samples, num_steps, num_atoms, type]
-            all_pred_exp_traj = result.get('pred_exp_traj', [])
-            all_pred_exp_atom_traj = result.get('pred_exp_atom_traj', [])
+
+            # Support both formats:
+            # 1. Original format: pred_ligand_pos_traj [num_samples, num_steps, num_atoms, 3]
+            # 2. Unified format: pos (final) and pos_traj (trajectory for single sample)
+            if 'pred_ligand_pos_traj' in result:
+                # Original format
+                all_pred_ligand_pos = result['pred_ligand_pos_traj']
+                all_pred_ligand_v = result['pred_ligand_v_traj']
+                all_pred_exp_traj = result.get('pred_exp_traj', [])
+                all_pred_exp_atom_traj = result.get('pred_exp_atom_traj', [])
+            elif 'pos' in result:
+                # Unified format (single sample per file)
+                pos = result['pos']  # Final position [num_atoms, 3]
+                v = result['v']      # Final types [num_atoms]
+                pos_traj = result.get('pos_traj', None)  # [num_steps, num_atoms, 3]
+                v_traj = result.get('v_traj', None)      # [num_steps, num_atoms, type]
+
+                # Wrap in list to match expected format [num_samples=1, ...]
+                if pos_traj is not None:
+                    all_pred_ligand_pos = [pos_traj]
+                    all_pred_ligand_v = [v_traj]
+                else:
+                    # No trajectory, just final position
+                    all_pred_ligand_pos = [np.expand_dims(pos, axis=0)]  # [1, num_atoms, 3]
+                    all_pred_ligand_v = [np.expand_dims(v, axis=0)]      # [1, num_atoms]
+                all_pred_exp_traj = []
+                all_pred_exp_atom_traj = []
+            else:
+                raise KeyError(f"Unknown result format. Expected 'pred_ligand_pos_traj' or 'pos'. Got: {list(result.keys())}")
             
             # Handle missing or malformed exp_atom_traj like in evaluate_diffusion.py
             if not all_pred_exp_atom_traj or len(all_pred_exp_atom_traj) != len(all_pred_ligand_pos):
@@ -1072,11 +1203,12 @@ def main():
             
             # Process each ligand in the batch
             batch_size = len(pred_pos)
-            
+
             for sample_idx in range(batch_size):
+                num_samples += 1  # Count total samples for validity statistics
                 total_ligands += 1
                 ligand_name = f"ligand_{total_ligands}_from_{os.path.basename(result_file)}"
-                
+
                 print(f"Processing {ligand_name}...")
                 
                 # Extract ligand data
@@ -1145,11 +1277,17 @@ def main():
                     # Add stability check (following evaluate_diffusion.py)
                     stability_results = analyze.check_stability(ligand_pos, ligand_atom_types)
                     is_mol_stable, n_stable_atoms, total_atoms = stability_results
-                    
+
+                    # Accumulate stability statistics (following evaluate_diffusion.py)
+                    all_mol_stable += int(is_mol_stable)
+                    all_atom_stable += n_stable_atoms
+                    all_n_atom += total_atoms
+                    all_atom_types += Counter(ligand_atom_types)
+
                     if not is_mol_stable:
                         print(f"    Unstable molecule detected ({n_stable_atoms}/{total_atoms} stable atoms)")
                         # Still proceed but with warning
-                        
+
                 except reconstruct.MolReconsError as e:
                     print(f"  Molecule reconstruction failed: {e}")
                     continue
@@ -1190,7 +1328,20 @@ def main():
                 chem_results = on_target_result.get('chem_results', {})
                 vina_results = on_target_result.get('vina_results', {})
                 smiles = on_target_result.get('smiles', None)
-                
+
+                # Update validity statistics (following evaluate_diffusion.py)
+                # Check if reconstruction was successful (mol exists)
+                if on_target_result.get('mol') is not None:
+                    n_recon_success += 1
+
+                    # Check if molecule is complete (not fragmented)
+                    if smiles is not None and '.' not in smiles:
+                        n_complete += 1
+
+                        # Check if evaluation was successful (docking worked)
+                        if on_target_result.get('success', False):
+                            n_eval_success += 1
+
                 # Create result summary
                 result_summary = {
                     'ligand_name': ligand_name,
@@ -1338,7 +1489,37 @@ def main():
     logger.info(f"\n=== Summary ===")
     logger.info(f"Total ligands processed: {total_ligands}")
     logger.info(f"Mode: {args.mode}")
-    
+
+    # --- 6a. Validity Statistics (following evaluate_diffusion.py) ---
+    logger.info(f"\n=== Validity Statistics ===")
+    if num_samples > 0:
+        fraction_mol_stable = all_mol_stable / num_samples
+        fraction_atm_stable = all_atom_stable / all_n_atom if all_n_atom > 0 else 0.0
+        fraction_recon = n_recon_success / num_samples
+        fraction_eval = n_eval_success / num_samples
+        fraction_complete = n_complete / num_samples
+
+        validity_dict = {
+            'mol_stable': fraction_mol_stable,
+            'atm_stable': fraction_atm_stable,
+            'recon_success': fraction_recon,
+            'eval_success': fraction_eval,
+            'complete': fraction_complete
+        }
+
+        # Print validity dict (following evaluate_diffusion.py format)
+        for k, v in validity_dict.items():
+            logger.info(f'{k}:\t{v:.4f}')
+
+        logger.info(f'\nNumber of samples: {num_samples}')
+        logger.info(f'Number of reconstructed mols: {n_recon_success}, complete mols: {n_complete}, evaluated mols: {n_eval_success}')
+    else:
+        logger.info("No samples processed for validity statistics")
+        validity_dict = {}
+
+    # --- 6b. Docking Statistics ---
+    logger.info(f"\n=== Docking Statistics ===")
+
     # Calculate statistics
     successful_ligands = [r for r in all_results if r.get('on_target_affinity') is not None]
     selectivity_scores = [r['selectivity_score'] for r in successful_ligands if r.get('selectivity_score') is not None]
@@ -1411,6 +1592,23 @@ def main():
                 logger.info(f"1. Load protein PDB files: {', '.join([os.path.basename(f) for f in pdb_files])}")
                 logger.info(f"2. Load ligand SDF files from the same directory")
                 logger.info(f"3. Use PyMOL commands to show binding sites and interactions")
+
+    # --- 7. Save Validity Metrics (following evaluate_diffusion.py) ---
+    if args.save and validity_dict:
+        metrics_path = os.path.join(args.output_dir, f'validity_metrics_{args.eval_step}.pt')
+        torch.save({
+            'info': f'Number of samples: {num_samples}, reconstructed mols: {n_recon_success}, complete mols: {n_complete}, evaluated mols: {n_eval_success}',
+            'validity': validity_dict,
+            'num_samples': num_samples,
+            'n_recon_success': n_recon_success,
+            'n_complete': n_complete,
+            'n_eval_success': n_eval_success,
+            'all_mol_stable': all_mol_stable,
+            'all_atom_stable': all_atom_stable,
+            'all_n_atom': all_n_atom,
+        }, metrics_path)
+        logger.info(f"\nValidity metrics saved to: {metrics_path}")
+
 
 if __name__ == '__main__':
     main()

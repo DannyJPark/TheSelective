@@ -24,13 +24,6 @@ class MultiProteinPairedDataset(Dataset):
         self.transform = transform
         self.db = None
         self.keys = None
-        
-        # Force create initialization log
-        try:
-            with open('/tmp/multipro_dataset_init.log', 'a') as f:
-                f.write(f"MultiProteinPairedDataset.__init__ called\n")
-        except:
-            pass
 
     def _connect_db(self):
         assert self.db is None, 'A connection has already been opened.'
@@ -65,15 +58,6 @@ class MultiProteinPairedDataset(Dataset):
     def __getitem__(self, idx):
         if self.db is None:
             self._connect_db()
-        
-        # Debug: Always print when getitem is called
-        with open('/tmp/dataset_getitem_log.txt', 'a') as f:
-            f.write(f"MultiProteinPairedDataset.__getitem__ called with idx={idx}\n")
-        
-        # Force debug for first call
-        if idx == 0:
-            with open('/tmp/first_sample_debug.txt', 'w') as f:
-                f.write(f"First sample called!\n")
         
         key = self.keys[idx]
         data = pickle.loads(self.db.begin().get(key))
@@ -133,19 +117,6 @@ class MultiProteinPairedDataset(Dataset):
             if k not in final_data and (k.startswith('ligand_') or k.startswith('protein_')):
                  final_data[k] = v
 
-        # Debug: Check data shapes before creating ProteinLigandData
-        if idx < 3:  # Only for first few samples
-            debug_info = []
-            for key, value in final_data.items():
-                if torch.is_tensor(value):
-                    debug_info.append(f"{key}: {value.shape} {value.dtype}")
-                else:
-                    debug_info.append(f"{key}: {type(value)} {value}")
-            
-            with open(f'/tmp/data_debug_{idx}.txt', 'w') as f:
-                f.write(f"Sample {idx} data shapes:\n")
-                f.write("\n".join(debug_info))
-
         # Validate that critical tensors are not empty
         critical_fields = ['ligand_element', 'protein_element', 'ligand_pos', 'protein_pos']
         for field in critical_fields:
@@ -165,24 +136,12 @@ class MultiProteinPairedDataset(Dataset):
         try:
             graph_data = ProteinLigandData(**final_data)
         except Exception as e:
-            # Write detailed debug info on error
-            with open(f'/tmp/data_error_{idx}.txt', 'w') as f:
-                f.write(f"Error creating ProteinLigandData for sample {idx}: {e}\n")
-                for key, value in final_data.items():
-                    if torch.is_tensor(value):
-                        f.write(f"{key}: shape={value.shape}, dtype={value.dtype}, device={value.device}\n")
-                        if value.numel() == 0:
-                            f.write(f"  WARNING: {key} is empty tensor!\n")
-                    else:
-                        f.write(f"{key}: {type(value)} = {value}\n")
             raise
 
         if self.transform is not None:
             try:
                 graph_data = self.transform(graph_data)
             except Exception as e:
-                with open(f'/tmp/transform_error_{idx}.txt', 'w') as f:
-                    f.write(f"Error in transform for sample {idx}: {e}\n")
                 raise
 
         return graph_data
@@ -205,7 +164,7 @@ class PocketLigandPairDataset(Dataset):
                                                os.path.basename(self.raw_path) + f'_processed_{version}.lmdb')
 
         self.raw_affinity_path = os.path.join('/data/qianhao', TYPES_FILENAME)
-        self.affinity_path = os.path.join('scratch2/data', 'affinity_info_complete.pkl')
+        self.affinity_path = os.path.join('data', 'affinity_info_complete.pkl')
         self.transform = transform
         self.db = None
         self.keys = None
@@ -545,5 +504,5 @@ class PDBPairDataset(Dataset):
 
 if __name__ == '__main__':
 
-    dataset = PDBPairDataset('./scratch2/data/pdbbind2020/')
+    dataset = PDBPairDataset('./data/pdbbind2020/')
     print(len(dataset), dataset[0])

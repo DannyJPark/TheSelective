@@ -12,7 +12,7 @@ import utils.misc as misc
 import utils.transforms as trans
 from datasets.pl_data import ProteinLigandData, torchify_dict
 from models.molopt_score_model import ScorePosNet3D
-from scripts.sample_diffusion2 import sample_diffusion_ligand
+from scripts.sample_diffusion import sample_diffusion_ligand
 from utils.data import PDBProtein
 from datasets.pl_pair_dataset import parse_sdf_file
 
@@ -30,7 +30,7 @@ def pdb_to_pocket_data(protein_root, protein_fn, ligand_fn):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pdb_idx', type=int, default=0)
-    parser.add_argument('--protein_root', type=str, default='./scratch2/data/extended_poc_proteins/')
+    parser.add_argument('--protein_root', type=str, default='./data/extended_poc_proteins/')
     parser.add_argument('--config', type=str, default='./configs/sampling.yml')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--batch_size', type=int, default=4)

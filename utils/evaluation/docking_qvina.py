@@ -54,7 +54,7 @@ class BaseDockingTask(object):
 class QVinaDockingTask(BaseDockingTask):
 
     @classmethod
-    def from_generated_data(cls, data, protein_root='./scratch2/data/crossdocked', **kwargs):
+    def from_generated_data(cls, data, protein_root='./data/crossdocked', **kwargs):
         # load original pdb
         protein_fn = os.path.join(
             os.path.dirname(data.ligand_filename),
@@ -71,7 +71,7 @@ class QVinaDockingTask(BaseDockingTask):
         return cls(pdb_block, ligand_rdmol, **kwargs)
 
     @classmethod
-    def from_generated_mol(cls, ligand_rdmol, protein_filename, protein_root='./scratch2/data/crossdocked', **kwargs):
+    def from_generated_mol(cls, ligand_rdmol, protein_filename, protein_root='./data/crossdocked', **kwargs):
         # load original pdb
         protein_path = os.path.join(protein_root, protein_filename)
         with open(protein_path, 'r') as f:
@@ -79,7 +79,7 @@ class QVinaDockingTask(BaseDockingTask):
         return cls(pdb_block, ligand_rdmol, **kwargs)
 
     @classmethod
-    def from_original_data(cls, data, ligand_root='./scratch2/data/crossdocked_pocket10', protein_root='./scratch2/data/crossdocked',
+    def from_original_data(cls, data, ligand_root='./data/crossdocked_pocket10', protein_root='./data/crossdocked',
                            **kwargs):
         protein_fn = os.path.join(
             os.path.dirname(data.ligand_filename),

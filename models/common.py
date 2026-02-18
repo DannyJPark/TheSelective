@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import knn_graph, radius_graph
 
-
 class GaussianSmearing(nn.Module):
     def __init__(self, start=0.0, stop=5.0, num_gaussians=50):
         super(GaussianSmearing, self).__init__()
@@ -23,7 +22,6 @@ class GaussianSmearing(nn.Module):
         dist = dist.view(-1, 1) - self.offset.view(1, -1)
         return torch.exp(self.coeff * torch.pow(dist, 2))
 
-
 class AngleExpansion(nn.Module):
     def __init__(self, start=1.0, stop=5.0, half_expansion=10):
         super(AngleExpansion, self).__init__()
@@ -35,7 +33,6 @@ class AngleExpansion(nn.Module):
     def forward(self, angle):
         return torch.cos(angle.view(-1, 1) * self.coeff.view(1, -1))
 
-
 class Swish(nn.Module):
     def __init__(self):
         super(Swish, self).__init__()
@@ -43,7 +40,6 @@ class Swish(nn.Module):
 
     def forward(self, x):
         return x * torch.sigmoid(self.beta * x)
-
 
 NONLINEARITIES = {
     "tanh": nn.Tanh(),
@@ -53,7 +49,6 @@ NONLINEARITIES = {
     "swish": Swish(),
     'silu': nn.SiLU()
 }
-
 
 class MLP(nn.Module):
     """MLP with the same hidden dim across all layers."""
@@ -77,7 +72,6 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-
 def outer_product(*vectors):
     # Check for empty tensors
     for vector in vectors:
@@ -99,7 +93,6 @@ def outer_product(*vectors):
             out = out.view(out.shape[0], -1).unsqueeze(-1)
     return out.squeeze()
 
-
 def get_h_dist(dist_metric, hi, hj):
     if dist_metric == 'euclidean':
         h_dist = torch.sum((hi - hj) ** 2, -1, keepdim=True)
@@ -109,7 +102,6 @@ def get_h_dist(dist_metric, hi, hj):
         hj_norm = torch.norm(hj, p=2, dim=-1, keepdim=True)
         h_dist = torch.sum(hi * hj, -1, keepdim=True) / (hi_norm * hj_norm)
         return h_dist, hj_norm
-
 
 def get_r_feat(r, r_exp_func, node_type=None, edge_index=None, mode='basic'):
     if mode == 'origin':
@@ -126,9 +118,7 @@ def get_r_feat(r, r_exp_func, node_type=None, edge_index=None, mode='basic'):
         raise ValueError(mode)
     return r_feat
 
-# compose_context 함수 수정
-# protein_id를 인자로 추가로 받습니다.
-def compose_context(h_protein, h_ligand, pos_protein, pos_ligand, batch_protein, batch_ligand, protein_id):
+def compose_context(h_protein, h_ligand, pos_protein, pos_ligand, batch_protein, batch_ligand, protein_id=None):
     # previous version has problems when ligand atom types are fixed
     # (due to sorting randomly in case of same element)
 
@@ -136,33 +126,31 @@ def compose_context(h_protein, h_ligand, pos_protein, pos_ligand, batch_protein,
     # sort_idx = batch_ctx.argsort()
     sort_idx = torch.sort(batch_ctx, stable=True).indices
 
-    # mask_ligand: 리간드 원자는 True, 단백질 원자는 False
+    # mask_ligand: True for ligand atoms, False for protein atoms
     mask_ligand = torch.cat([
         torch.zeros([batch_protein.size(0)], device=batch_protein.device).bool(),
         torch.ones([batch_ligand.size(0)], device=batch_ligand.device).bool(),
     ], dim=0)[sort_idx]
 
-    # <<<--- 추가된 부분 시작 --->>>
-    # mask_protein: 단백질 원자는 True, 리간드 원자는 False
-    mask_protein = ~mask_ligand # mask_ligand의 반대는 곧 mask_protein 입니다.
+    # mask_protein: True for protein atoms, False for ligand atoms
+    mask_protein = ~mask_ligand
     
-    # protein_id도 다른 텐서들과 동일하게 정렬해줍니다.
-    # 리간드의 ID는 -1과 같은 임의의 값으로 채워줍니다.
+    # Align protein_id with other tensors
+    # Fill ligand atoms with -1 as placeholder ID
     if protein_id is not None:
         ligand_dummy_ids = torch.full_like(batch_ligand, fill_value=-1)
         protein_id_ctx = torch.cat([protein_id, ligand_dummy_ids], dim=0)[sort_idx]
     else:
-        # protein_id가 None인 경우, 모든 원자를 동일한 ID로 설정
+        # If protein_id is None, set all atoms to same ID
         protein_id_ctx = None
-    # --- 수정 끝 ---
-    # <<<--- 추가된 부분 끝 --->>>
 
     batch_ctx = batch_ctx[sort_idx]
     h_ctx = torch.cat([h_protein, h_ligand], dim=0)[sort_idx]  # (N_protein+N_ligand, H)
     pos_ctx = torch.cat([pos_protein, pos_ligand], dim=0)[sort_idx]  # (N_protein+N_ligand, 3)
 
+    # Always return 6 values (expected by forward_sam_pl etc.)
+    # If protein_id is None, return protein_id_ctx as None
     return h_ctx, pos_ctx, batch_ctx, mask_ligand, mask_protein, protein_id_ctx
-
 
 class ShiftedSoftplus(nn.Module):
     def __init__(self):
@@ -171,7 +159,6 @@ class ShiftedSoftplus(nn.Module):
 
     def forward(self, x):
         return F.softplus(x) - self.shift
-
 
 def hybrid_edge_connection(ligand_pos, protein_pos, k, ligand_index, protein_index):
     # fully-connected for ligand atoms
@@ -191,7 +178,6 @@ def hybrid_edge_connection(ligand_pos, protein_pos, k, ligand_index, protein_ind
     pl_edge_index = torch.stack([knn_p_idx, knn_l_idx], dim=0)
     pl_edge_index = pl_edge_index.view(2, -1)
     return ll_edge_index, pl_edge_index
-
 
 def mask_cross_protein_edges(edge_index, protein_id, mask_ligand, debug=False):
     """
@@ -346,7 +332,6 @@ def batch_hybrid_edge_connection_selective(x, k, mask_ligand, batch, protein_id,
     
     return edge_index
 
-
 def selective_knn_graph(x, k, batch, protein_id=None, mask_ligand=None, flow='source_to_target', debug=False):
     """
     KNN graph generation with protein ID-based filtering to prevent cross-protein edges.
@@ -436,7 +421,6 @@ def selective_knn_graph(x, k, batch, protein_id=None, mask_ligand=None, flow='so
         
     return edge_index
 
-
 def selective_radius_graph(x, r, batch, protein_id=None, mask_ligand=None, flow='source_to_target', max_num_neighbors=32, debug=False):
     """
     Radius graph generation with protein ID-based filtering to prevent cross-protein edges.
@@ -516,7 +500,6 @@ def selective_radius_graph(x, r, batch, protein_id=None, mask_ligand=None, flow=
         pass
         
     return edge_index
-
 
 def batch_hybrid_edge_connection(x, k, mask_ligand, batch, add_p_index=False, protein_id=None, mask_cross_protein=False, debug=False):
     """

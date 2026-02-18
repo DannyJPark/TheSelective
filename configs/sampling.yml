@@ -1,0 +1,18 @@
+# TheSelective Sampling Configuration
+# Most settings are loaded from the training checkpoint
+
+model:
+  # Checkpoint path (update to your trained checkpoint)
+  joint_ckpt: './checkpoints/theselective.pt'
+
+  # Edge configuration (must match training)
+  cutoff_mode: knn
+  knn: 32
+
+sample:
+  seed: 42
+  num_steps: 1000
+  center_pos_mode: protein
+  num_samples: 100
+  batch_size: 16
+  sample_num_atoms: prior
