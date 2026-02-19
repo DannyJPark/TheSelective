@@ -60,8 +60,7 @@ bash scripts/train.sh
 ```
 ## Model Checkpoints
 
-Pre-trained model :
-Download file and replace pt file directory in sampling.yml :
+Pre-trained model - Download file and replace pt file directory in sampling.yml :
 https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link
 | Model | Checkpoint | Description |
 |-------|------------|-------------|
