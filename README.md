@@ -59,9 +59,8 @@ Or use the wrapper script:
 bash scripts/train.sh
 ```
 
-```Trained Model Checkpoint
+##Trained Model Checkpoint
 https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link
-```
 
 ## Generation
 
