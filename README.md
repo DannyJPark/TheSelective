@@ -32,19 +32,21 @@ pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
 
 ## Data Preparation
 
-data.zip :
-https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link
+Download the following and extract to `./data/`:
 
-tmscore_extreme_pairs.txt :
-https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing
+| File | Description | Link |
+|------|-------------|------|
+| data.zip | LMDB dataset + split file + CrossDocked pocket structures | [Google Drive](https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link) |
+| tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing) |
 
-Download datasets and place them in `./data/`:
+After extraction, the directory structure should be:
 
 ```
 data/
-├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb
-├── crossdocked_pocket10_pose_split.pt
-└── tmscore_extreme_pairs.txt  # For TM-score pair evaluation
+├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb   # Training/test LMDB
+├── crossdocked_pocket10_pose_split.pt                        # Train/val/test split
+├── crossdocked_pocket10/                                     # Raw protein/ligand structures (for docking)
+└── tmscore_extreme_pairs.txt                                 # TM-score pair evaluation list
 ```
 
 ## Training
@@ -158,8 +160,7 @@ TheSelective/
 │   ├── __init__.py
 │   ├── train_diffusion.py        # Training script
 │   ├── sample_diffusion.py       # Generation with guidance
-│   ├── evaluate_diffusion.py     # Evaluation metrics
-│   ├── sample_for_pocket.py      # Single pocket generation
+│   ├── evaluate_diffusion.py     # Evaluation metrics (validity, QED, SA)
 │   ├── dock_generated_ligands.py # Docking evaluation
 │   ├── train.sh                  # Training wrapper
 │   └── run_theselective.sh       # Full pipeline (gen + dock)

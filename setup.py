@@ -15,7 +15,6 @@ setup(name='TheSelective',
       entry_points={
           'console_scripts': [
               'ts_gen = scripts.sample_diffusion:main',
-              'ts_gen4poc = scripts.sample_for_pocket:main',
               'ts_train = scripts.train_diffusion:main',
               'ts_eval = scripts.evaluate_diffusion:main',
           ],

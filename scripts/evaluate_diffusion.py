@@ -121,13 +121,24 @@ def main():
     for example_idx, r_name in enumerate(tqdm(results_fn_list, desc='Eval')):
         
 
-        r = torch.load(r_name)  # ['data', 'pred_ligand_pos', 'pred_ligand_v', 'pred_ligand_pos_traj', 'pred_ligand_v_traj']
-        all_pred_ligand_pos = r['pred_ligand_pos_traj']  # [num_samples, num_steps, num_atoms, 3]
-        all_pred_ligand_v = r['pred_ligand_v_traj']
-        all_pred_exp_traj = r['pred_exp_traj']
-        all_pred_exp_score = r['pred_exp']
-        all_pred_exp_atom_traj = r['pred_exp_atom_traj']
-        # all_pred_exp_atom_traj = [np.zeros_like(all_pred_ligand_v[0]) for i in range(len(all_pred_exp_score))]
+        r = torch.load(r_name)
+
+        # Unified format: one sample per file with keys pos, v, pos_traj, v_traj, exp_on, exp_off
+        pos = r['pos']      # [num_atoms, 3]
+        v = r['v']          # [num_atoms]
+        pos_traj = r.get('pos_traj', None)   # [num_steps, num_atoms, 3]
+        v_traj = r.get('v_traj', None)       # [num_steps, num_atoms]
+
+        if pos_traj is not None:
+            all_pred_ligand_pos = [pos_traj]
+            all_pred_ligand_v = [v_traj]
+        else:
+            all_pred_ligand_pos = [np.expand_dims(pos, axis=0)]
+            all_pred_ligand_v = [np.expand_dims(v, axis=0)]
+
+        all_pred_exp_score = [r.get('exp_on', 0.0)]
+        all_pred_exp_atom_traj = [np.ones_like(all_pred_ligand_v[0])]
+
         num_samples += len(all_pred_ligand_pos)
 
         for sample_idx, (pred_pos, pred_v, pred_exp_score, pred_exp_atom_weight) in enumerate(zip(all_pred_ligand_pos, all_pred_ligand_v, all_pred_exp_score, all_pred_exp_atom_traj)):
@@ -173,60 +184,62 @@ def main():
 
             chem_results = scoring_func.get_chem(mol)
 
-                
-            if args.docking_mode == 'qvina':
-                vina_task = QVinaDockingTask.from_generated_mol(
-                    mol, r['data'].protein_filename, protein_root=args.protein_root)
-                vina_results = vina_task.run_sync()
+            # Docking evaluation (use dock_generated_ligands.py for full docking pipeline)
+            vina_results = None
+            if args.docking_mode != 'none':
+                try:
+                    protein_fn = r.get('protein_filename', None)
+                    ligand_fn = r.get('ligand_filename', None)
 
-            elif args.docking_mode in ['vina_score', 'vina_dock']:
-                if args.eval_pdbbind:
-                    logger.info('eval pdbbind')
+                    if protein_fn is None and ligand_fn is not None:
+                        if args.eval_pdbbind:
+                            protein_fn = os.path.join(
+                                os.path.dirname(ligand_fn),
+                                os.path.basename(ligand_fn)[:4] + '_protein.pdb'
+                            )
+                        else:
+                            protein_fn = os.path.join(
+                                os.path.dirname(ligand_fn),
+                                os.path.basename(ligand_fn)[:10] + '.pdb'
+                            )
 
-                    protein_fn = os.path.join(
-                        os.path.dirname(r['data'].ligand_filename),
-                        os.path.basename(r['data'].ligand_filename)[:4] + '_protein.pdb'
-                    )
-                else:
-                    logger.info('eval other dataset')
+                    if protein_fn is not None:
+                        if args.docking_mode == 'qvina':
+                            vina_task = QVinaDockingTask.from_generated_mol(
+                                mol, protein_fn, protein_root=args.protein_root)
+                            vina_results = vina_task.run_sync()
+                        elif args.docking_mode in ['vina_score', 'vina_dock']:
+                            vina_task = VinaDockingTask.from_generated_mol(
+                                mol, protein_fn, protein_root=args.protein_root)
+                            score_only_results = vina_task.run(mode='score_only', exhaustiveness=args.exhaustiveness)
+                            minimize_results = vina_task.run(mode='minimize', exhaustiveness=args.exhaustiveness)
+                            vina_results = {
+                                'score_only': score_only_results,
+                                'minimize': minimize_results
+                            }
+                            if args.docking_mode == 'vina_dock':
+                                docking_save_path = None
+                                if args.save_complex:
+                                    complex_path = os.path.join(result_path, 'complexes')
+                                    os.makedirs(complex_path, exist_ok=True)
+                                    docking_save_path = os.path.join(complex_path, f'{example_idx}_{sample_idx}_dock.pdb')
+                                docking_results = vina_task.run(mode='dock', exhaustiveness=args.exhaustiveness, save_path=docking_save_path)
+                                vina_results['dock'] = docking_results
 
-                    protein_fn = os.path.join(
-                        os.path.dirname(r['data'].ligand_filename),
-                        os.path.basename(r['data'].ligand_filename)[:10] + '.pdb'
-                    )
-
-                vina_task = VinaDockingTask.from_generated_mol(
-                    mol, protein_fn, protein_root=args.protein_root)
-                score_only_results = vina_task.run(mode='score_only', exhaustiveness=args.exhaustiveness)
-
-                minimize_results = vina_task.run(mode='minimize', exhaustiveness=args.exhaustiveness)
-                vina_results = {
-                    'score_only': score_only_results,
-                    'minimize': minimize_results
-                }
-
-                if args.docking_mode == 'vina_dock':
-                    docking_save_path = None
-                    if args.save_complex:
-                        complex_path = os.path.join(result_path, 'complexes')
-                        os.makedirs(complex_path, exist_ok=True)
-                        docking_save_path = os.path.join(complex_path, f'{example_idx}_{sample_idx}_dock.pdb')
-                    docking_results = vina_task.run(mode='dock', exhaustiveness=args.exhaustiveness, save_path=docking_save_path)
-                    vina_results['dock'] = docking_results
-                
-                sdf_path = os.path.join(result_path, f"sdf_{r_name[:-3].split('_')[-1]}")
-                os.makedirs(sdf_path, exist_ok=True)
-                writer = Chem.SDWriter(os.path.join(sdf_path, f'res_{sample_idx}.sdf'))
-                writer.write(mol)
-                writer.close()
-            else:
-                vina_results = None
+                            sdf_path = os.path.join(result_path, f"sdf_{r_name[:-3].split('_')[-1]}")
+                            os.makedirs(sdf_path, exist_ok=True)
+                            writer = Chem.SDWriter(os.path.join(sdf_path, f'res_{sample_idx}.sdf'))
+                            writer.write(mol)
+                            writer.close()
+                    else:
+                        if sample_idx == 0 and example_idx == 0:
+                            logger.info('No protein filename in result files. Skipping docking. '
+                                        'Use dock_generated_ligands.py for docking evaluation.')
+                except Exception as e:
+                    if args.verbose:
+                        logger.warning(f'Docking failed for {example_idx}_{sample_idx}: {e}')
 
             n_eval_success += 1
-            # except:
-            #     if args.verbose:
-            #         logger.warning('Evaluation failed for %s' % f'{example_idx}_{sample_idx}')
-            #     continue
 
             # now we only consider complete molecules as success
             bond_dist = eval_bond_length.bond_distance_from_mol(mol)
@@ -238,15 +251,11 @@ def main():
             results.append({
                 'mol': mol,
                 'smiles': smiles,
-                'ligand_filename': r['data'].ligand_filename,
                 'pred_pos': pred_pos,
                 'pred_v': pred_v,
                 'chem_results': chem_results,
                 'vina': vina_results,
                 'pred_exp': pred_exp,
-                'atom_exp': {
-                    atom.GetIdx(): parse_affinity_weight(atom.GetProp('_affinity_weight')) for atom in mol.GetAtoms()
-                }
             })
     logger.info(f'Evaluate done! {num_samples} samples in total.')
 
