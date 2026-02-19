@@ -65,7 +65,7 @@ Download file and replace pt file directory in sampling.yml :
 https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link
 | Model | Checkpoint | Description |
 |-------|------------|-------------|
-| TheSelective | 'checkpoints/theselective.pt' | Bidirectional cross-attention (675k iterations) |
+| TheSelective | `checkpoints/theselective.pt` | Bidirectional cross-attention (675k iterations) |
 
 
 ## Generation
