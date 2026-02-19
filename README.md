@@ -93,7 +93,7 @@ python scripts/sample_diffusion.py \
 
 | Parameter | Description | Recommended |
 |-----------|-------------|-------------|
-| `--guide_mode` | Selectivity guidance strategy | `head1_head2_staged` |
+| `--guide_mode` | Selectivity guidance strategy (Scheduled) | `head1_head2_staged` |
 | `--w_on` | On-target weight (higher = stronger binding) | 2.0 |
 | `--w_off` | Off-target weight (higher = weaker binding) | 1.0 |
 | `--head1_type_grad_weight` | Head1 atom type gradient | 100 |
