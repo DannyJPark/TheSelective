@@ -58,10 +58,15 @@ Or use the wrapper script:
 ```bash
 bash scripts/train.sh
 ```
+## Model Checkpoints
 
-## Trained Model Checkpoint
+Pre-trained model :
 Download file and replace pt file directory in sampling.yml :
 https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link
+| Model | Checkpoint | Description |
+|-------|------------|-------------|
+| TheSelective | 'checkpoints/theselective.pt' | Bidirectional cross-attention (675k iterations) |
+
 
 ## Generation
 
@@ -136,13 +141,7 @@ python analysis/analyze_tmscore_high_filtered.py
 python analysis/analyze_tmscore_low_filtered.py
 ```
 
-## Model Checkpoints
 
-Pre-trained model (will be available upon acceptance):
-
-| Model | Checkpoint | Description |
-|-------|------------|-------------|
-| TheSelective | `checkpoints/theselective.pt` | Bidirectional cross-attention (675k iterations) |
 
 ## Project Structure
 
