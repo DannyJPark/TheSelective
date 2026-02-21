@@ -132,7 +132,7 @@ bash scripts/run_theselective.sh
 
 ### Result Analysis
 
-results in paper : [https://drive.google.com/file/d/13p3URTI3nps-TdV3aALRGPFHYIYoeaEj/view?usp=drive_link]
+results in paper : [https://drive.google.com/file/d/1HCO8HG1zq16hwNar54F3CEbUaEj0cqr7/view?usp=sharing]
 
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
