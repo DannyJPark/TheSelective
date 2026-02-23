@@ -160,8 +160,7 @@ TheSelective/
 │   ├── __init__.py
 │   ├── train_diffusion.py        # Training script
 │   ├── sample_diffusion.py       # Generation with guidance
-│   ├── evaluate_diffusion.py     # Evaluation metrics (validity, QED, SA)
-│   ├── dock_generated_ligands.py # Docking evaluation
+│   ├── dock_generated_ligands.py # Docking evaluation (with QED, SA, Validity)
 │   ├── train.sh                  # Training wrapper
 │   └── run_theselective.sh       # Full pipeline (gen + dock)
 ├── analysis/
