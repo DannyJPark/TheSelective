@@ -14,29 +14,49 @@ Official implementation of **TheSelective**, a dual-head diffusion model for gen
 ```bash
 conda create -n theselective python=3.9
 conda activate theselective
+```
 
-# Install PyTorch
-conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 -c pytorch
+#### Step 1: Install PyTorch (GPU-dependent)
 
-# Install PyTorch Geometric
+PyTorch must match your CUDA version. Check your CUDA version first:
+```bash
+nvcc --version
+```
+
+Then visit **[PyTorch Get Started](https://pytorch.org/get-started/locally/)** and select the correct configuration.
+
+Example for CUDA 11.3:
+```bash
+conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
+```
+
+#### Step 2: Install PyTorch Geometric (GPU-dependent)
+
+PyG must match your PyTorch + CUDA combination. Visit **[PyG Installation](https://data.pyg.org/whl/)** for compatible wheels.
+
+Example for PyTorch 1.11.0 + CUDA 11.3:
+```bash
 conda install pytorch-scatter pytorch-cluster pytorch-sparse==0.6.13 pyg==2.0.4 -c pyg
+```
 
-# Install dependencies
+#### Step 3: Install remaining dependencies
+
+```bash
+# Core dependencies
 pip install pyyaml easydict lmdb numpy==1.21.6 pandas==1.4.1
 pip install tensorboard==2.9.0 Pillow==9.0.1 scipy==1.7.3
 
-# Install molecular processing tools
+# Molecular processing tools
 conda install -c conda-forge openbabel
 pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
-# =======================
-# install autodocktools
-# for linux
-python -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
-# for windows
-python.exe -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
-# =======================
 
-# Install remaining dependencies
+# AutoDockTools
+# Linux:
+python -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
+# Windows:
+python.exe -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
+
+# Other dependencies
 pip install -r requirements.txt
 ```
 
