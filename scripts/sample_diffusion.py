@@ -61,6 +61,10 @@ def main():
     parser.add_argument('--config', type=str, default=None, help='Optional sampling config')
     parser.add_argument('--data_id', '-i', type=int, default=0, help='On-target test set data ID')
     parser.add_argument('--off_target_id', type=int, default=None, help='Off-target test set data ID')
+    parser.add_argument('--data_path', type=str, default=None,
+                       help='Override data path from checkpoint config (e.g., ./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb)')
+    parser.add_argument('--split_path', type=str, default=None,
+                       help='Override split file path from checkpoint config')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_samples', type=int, default=100)
@@ -133,6 +137,14 @@ def main():
 
     logger.info(f'Protein feature dim: {protein_featurizer.feature_dim}')
     logger.info(f'Ligand feature dim: {ligand_featurizer.feature_dim}')
+
+    # Override data paths if provided (useful when checkpoint was trained with different paths)
+    if args.data_path is not None:
+        train_config.data.path = args.data_path
+        logger.info(f'Overriding data path: {args.data_path}')
+    if args.split_path is not None:
+        train_config.data.split = args.split_path
+        logger.info(f'Overriding split path: {args.split_path}')
 
     # Load dataset
     logger.info('Loading dataset...')
