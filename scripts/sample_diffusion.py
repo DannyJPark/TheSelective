@@ -67,10 +67,10 @@ def main():
                        help='Override split file path from checkpoint config')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--num_samples', type=int, default=100)
+    parser.add_argument('--num_samples', type=int, default=4)
     parser.add_argument('--num_steps', type=int, default=None, help='Diffusion steps')
     parser.add_argument('--sample_num_atoms', type=str, default='prior', choices=['prior', 'ref'])
-    parser.add_argument('--result_path', type=str, default='./outputs')
+    parser.add_argument('--result_path', type=str, default='./results/theselective')
     parser.add_argument('--tag', type=str, default='')
 
     # Guidance options

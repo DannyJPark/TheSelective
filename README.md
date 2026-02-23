@@ -152,7 +152,7 @@ python scripts/sample_diffusion.py \
     --head2_type_grad_weight 100 \
     --head2_pos_grad_weight 25 \
     --batch_size 4 \
-    --result_path ./results/theselective_id0_50
+    --result_path ./results/theselective
 ```
 
 ### Key Generation Parameters
