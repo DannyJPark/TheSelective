@@ -629,6 +629,7 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
         'Unified_BiPos_v2': Path('./results/unified_h1h2_bi_pos_v2') / f'id{on_id}_{off_id}_high' / 'docking_results' / 'docking_results.json',
         'Unified_BiPos_500': Path('./results/unified_h1h2_bi_pos_500') / f'id{on_id}_{off_id}_high' / 'docking_results' / 'docking_results.json',
         'Unified_BiPos_500_v2': Path('./results/unified_h1h2_bi_pos_500_v2') / f'id{on_id}_{off_id}_high' / 'docking_results' / 'docking_results.json',
+        'TheSelective': results_dir / 'theselective' / f'id{on_id}_{off_id}_high' / 'docking_results' / 'docking_results.json',
     }
 
     for model_name, file_path in models.items():
@@ -638,7 +639,7 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
             # Only normalize SA for Reference model
             is_reference = (model_name == 'Reference')
             # Limit TargetDiff, KGDiff, BInD, and Unified models to 8 molecules per pair for fair comparison
-            if model_name in ['TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2'] or model_name.startswith('head2_atom') or model_name.startswith('head2_1p'):
+            if model_name in ['TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'TheSelective'] or model_name.startswith('head2_atom') or model_name.startswith('head2_1p'):
                 max_mols = 8
             else:
                 max_mols = None
@@ -1202,7 +1203,7 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
         print(f"{'Model':<25} {'On-Tgt(Mean)':<14} {'On-Tgt(Med)':<14} {'Off-Tgt(Mean)':<14} {'Off-Tgt(Med)':<14} {'Select(Mean)':<14} {'Select(Med)':<14} {'QED(Mean)':<12} {'QED(Med)':<12} {'SA(Mean)':<11} {'SA(Med)':<11} {'#Mols':<8}")
         print("-" * 200)
 
-        for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos']:
+        for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'TheSelective']:
             model_data = pair_result['models'].get(model_name, {})
 
             if 'error' in model_data:
@@ -1230,7 +1231,7 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
     print(f"{'Model':<25} {'On-Tgt(Mean)':<14} {'On-Tgt(Med)':<14} {'Off-Tgt(Mean)':<14} {'Off-Tgt(Med)':<14} {'Select(Mean)':<14} {'Select(Med)':<14} {'QED(Mean)':<12} {'QED(Med)':<12} {'SA(Mean)':<11} {'SA(Med)':<11} {'Success%':<12}")
     print("-" * 200)
 
-    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos']:
+    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'TheSelective']:
         if model_name in final_stats:
             stats = final_stats[model_name]
 
@@ -1283,7 +1284,7 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
     print(f"{'Model':<25} {'ScOn(Mean)':<12} {'ScOn(Med)':<12} {'ScOff(Mean)':<12} {'ScOff(Med)':<12} {'ScDf(Mean)':<12} {'ScDf(Med)':<12} {'MinOn(Mean)':<12} {'MinOn(Med)':<12} {'MinOff(Mean)':<13} {'MinOff(Med)':<12} {'MinDf(Mean)':<12} {'MinDf(Med)':<12}")
     print("-" * 250)
 
-    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos']:
+    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'TheSelective']:
         if model_name in final_stats:
             stats = final_stats[model_name]
 
@@ -1333,7 +1334,7 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
     print(f"{'Model':<25} {'>Ref/400':<12} {'On>Ref&On<Off':<16} {'Sel>Ref':<12} {'Sel>Ref&On<Ref':<16} {'sel>1&On<Ref':<16} {'On<Ref&Off':<14} {'On<Rf,Of&Sel>Rf':<18} {'Sel>0':<12} {'Sel>1':<12} {'Sel>2':<12} {'Sel>3':<12} {'Sel>4':<12}")
     print("-" * 200)
 
-    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos']:
+    for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'TheSelective']:
         if model_name in final_stats:
             stats = final_stats[model_name]
 
