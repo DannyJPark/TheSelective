@@ -1,6 +1,6 @@
-# TheSelective: Dual-Head Diffusion for Selective Molecule Generation
+# TheSelective: Dual Affinity-Guided Diffusion for Selective Molecule Generation
 
-Official implementation of **TheSelective**, a dual-head diffusion model for generating molecules with high selectivity towards target proteins while minimizing off-target binding. The model uses a bidirectional cross-attention mechanism (`bidirectional_query_atom`) to capture both protein-to-ligand and ligand-to-protein interaction patterns.
+Official implementation of **TheSelective**, a dual-head diffusion model for generating molecules with high selectivity towards target proteins while minimizing off-target binding.
 
 ## Installation
 
@@ -55,13 +55,55 @@ After extraction, the directory structure should be:
 data/
 ├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb   # Training/test LMDB
 ├── crossdocked_pocket10_pose_split.pt                        # Train/val/test split
-├── crossdocked_pocket10/                                     # Pocket structures (pocket PDB + ligand SDF)
 ├── test_set/                                                 # Original receptor PDB + ligand files (for docking)
 └── tmscore_extreme_pairs.txt                                 # TM-score pair evaluation list
 ```
 
 > **Note:** `data.zip` includes `test_set.zip` inside it. After extracting `data.zip`, also extract `test_set.zip` into `./data/test_set/`. This directory contains the original full receptor PDB files (e.g., `4xli_B_rec.pdb`) and corresponding ligand files needed by the docking pipeline.
+## Project Structure
 
+```
+TheSelective/
+├── analysis/
+│   ├── analyze_tmscore_high_filtered.py  # High TM-score analysis
+│   └── analyze_tmscore_low_filtered.py   # Low TM-score analysis
+├── checkpoints/
+│   └──theselective.pt
+├── configs/
+│   ├── training.yml              # Training config (bidirectional_query_atom)
+│   └── sampling.yml              # Sampling config
+├── data/
+│   ├── test_set/                 # Original receptor PDB + ligand files (for docking)
+│   ├── crossdocked_pocket10_pose_split.pt           # Train/val/test split
+│   ├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb   # Training/Validation/Test LMDB
+│   └── tmscore_extreme_pairs.txt        # TM-score pair evaluation list
+├── datasets/
+│   ├── __init__.py
+│   ├── pl_data.py
+│   └── pl_pair_dataset.py
+├── models/
+│   ├── __init__.py
+│   ├── molopt_score_model.py     # Main dual-head diffusion model
+│   ├── uni_transformer.py        # SE(3)-equivariant transformer with selective edges
+│   └── common.py                 # Shared components (selective graph utils)
+├── results/
+├── scripts/
+│   ├── data_preparation/
+│   ├── __init__.py
+│   ├── train_diffusion.py        # Training script
+│   ├── sample_diffusion.py       # Generation with guidance
+│   ├── dock_generated_ligands.py # Docking evaluation (with QED, SA, Validity)
+│   ├── train.sh                  # Training wrapper
+│   └── run_theselective.sh       # Full pipeline (gen + dock)
+├── utils/
+│   ├── evaluation/               # Evaluation metrics
+│   └── ...                       # Utility functions
+├── README.md
+├── setup.py
+├── json_to_txt_converter.py
+├── requirements.txt
+└── .gitignore
+```
 ## Training
 
 ```bash
@@ -162,42 +204,6 @@ python analysis/analyze_tmscore_high_filtered.py
 python analysis/analyze_tmscore_low_filtered.py
 ```
 
-
-
-## Project Structure
-
-```
-TheSelective/
-├── configs/
-│   ├── training.yml              # Training config (bidirectional_query_atom)
-│   └── sampling.yml              # Sampling config
-├── models/
-│   ├── __init__.py
-│   ├── molopt_score_model.py     # Main dual-head diffusion model
-│   ├── uni_transformer.py        # SE(3)-equivariant transformer with selective edges
-│   └── common.py                 # Shared components (selective graph utils)
-├── scripts/
-│   ├── __init__.py
-│   ├── train_diffusion.py        # Training script
-│   ├── sample_diffusion.py       # Generation with guidance
-│   ├── dock_generated_ligands.py # Docking evaluation (with QED, SA, Validity)
-│   ├── train.sh                  # Training wrapper
-│   └── run_theselective.sh       # Full pipeline (gen + dock)
-├── analysis/
-│   ├── analyze_tmscore_high_filtered.py  # High TM-score analysis
-│   └── analyze_tmscore_low_filtered.py   # Low TM-score analysis
-├── datasets/
-│   ├── __init__.py
-│   ├── pl_data.py
-│   └── pl_pair_dataset.py
-├── utils/
-│   ├── evaluation/               # Evaluation metrics
-│   └── ...                       # Utility functions
-├── README.md
-├── setup.py
-├── requirements.txt
-└── .gitignore
-```
 
 ## Acknowledgments
 
