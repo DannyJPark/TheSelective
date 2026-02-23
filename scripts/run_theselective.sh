@@ -18,6 +18,8 @@ fi
 
 # Model configuration
 CKPT_PATH="${CKPT_PATH:-./checkpoints/theselective.pt}"
+DATA_PATH="${DATA_PATH:-./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb}"
+SPLIT_PATH="${SPLIT_PATH:-./data/crossdocked_pocket10_pose_split.pt}"
 GUIDE_MODE="head1_head2_staged"
 
 # Gradient weights
@@ -39,6 +41,8 @@ echo "========================================================================"
 echo "TheSelective: TM-score Pair Evaluation"
 echo "========================================================================"
 echo "Checkpoint: $CKPT_PATH"
+echo "Data Path: $DATA_PATH"
+echo "Split Path: $SPLIT_PATH"
 echo "GPU: $CUDA_VISIBLE_DEVICES"
 echo "Guide Mode: $GUIDE_MODE"
 echo "Head1 Weights: type=$HEAD1_TYPE_WEIGHT, pos=$HEAD1_POS_WEIGHT"
@@ -104,6 +108,8 @@ while IFS=',' read -r target_id high_off_id high_score low_off_id low_score; do
     echo "  [HIGH] Generating molecules for ($target_id, $high_off_id)..."
     if python scripts/sample_diffusion.py \
         --ckpt "$CKPT_PATH" \
+        --data_path "$DATA_PATH" \
+        --split_path "$SPLIT_PATH" \
         --data_id $target_id \
         --off_target_id $high_off_id \
         --guide_mode "$GUIDE_MODE" \
@@ -131,6 +137,8 @@ while IFS=',' read -r target_id high_off_id high_score low_off_id low_score; do
     echo "  [LOW] Generating molecules for ($target_id, $low_off_id)..."
     if python scripts/sample_diffusion.py \
         --ckpt "$CKPT_PATH" \
+        --data_path "$DATA_PATH" \
+        --split_path "$SPLIT_PATH" \
         --data_id $target_id \
         --off_target_id $low_off_id \
         --guide_mode "$GUIDE_MODE" \
