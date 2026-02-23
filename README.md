@@ -140,6 +140,8 @@ Generate molecules with on-target/off-target selectivity:
 ```bash
 python scripts/sample_diffusion.py \
     --ckpt ./checkpoints/theselective.pt \
+    --data_path ./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb \
+    --split_path ./data/crossdocked_pocket10_pose_split.pt \
     --data_id 0 \
     --off_target_id 50 \
     --guide_mode head1_head2_staged \
@@ -157,6 +159,8 @@ python scripts/sample_diffusion.py \
 
 | Parameter | Description | Recommended |
 |-----------|-------------|-------------|
+| `--data_path` | Path to LMDB dataset (overrides checkpoint config) | `./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb` |
+| `--split_path` | Path to train/val/test split file (overrides checkpoint config) | `./data/crossdocked_pocket10_pose_split.pt` |
 | `--guide_mode` | Selectivity guidance strategy (Scheduled) | `head1_head2_staged` |
 | `--w_on` | On-target weight (higher = stronger binding) | 2.0 |
 | `--w_off` | Off-target weight (higher = weaker binding) | 1.0 |
