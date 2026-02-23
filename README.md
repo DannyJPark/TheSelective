@@ -143,7 +143,7 @@ python scripts/sample_diffusion.py \
     --data_path ./data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb \
     --split_path ./data/crossdocked_pocket10_pose_split.pt \
     --data_id 0 \
-    --off_target_id 50 \
+    --off_target_id 96 \
     --guide_mode head1_head2_staged \
     --w_on 2.0 \
     --w_off 1.0 \
@@ -152,7 +152,7 @@ python scripts/sample_diffusion.py \
     --head2_type_grad_weight 100 \
     --head2_pos_grad_weight 25 \
     --batch_size 4 \
-    --result_path ./results/theselective
+    --result_path ./results/theselective/id0_96_high
 ```
 
 ### Key Generation Parameters
