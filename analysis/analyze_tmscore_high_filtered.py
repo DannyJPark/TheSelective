@@ -1395,7 +1395,7 @@ def main():
 
     filter_failed_docking = not args.no_filter
 
-    tmscore_file = './tmscore_extreme_pairs.txt'
+    tmscore_file = './data/tmscore_extreme_pairs.txt'
 
     print(f"Loading HIGH TM-score pairs from {tmscore_file}...")
     print(f"Docking failure filter: {'ENABLED' if filter_failed_docking else 'DISABLED'}")
