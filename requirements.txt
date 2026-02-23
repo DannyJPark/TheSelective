@@ -1,14 +1,3 @@
-# Core Deep Learning
-torch==1.11.0
-torchvision==0.12.0
-torchaudio==0.11.0
-
-# PyTorch Geometric
-torch-scatter
-torch-cluster
-torch-sparse==0.6.13
-torch-geometric==2.0.4
-
 # Scientific Computing
 numpy==1.21.6
 pandas==1.4.1
@@ -27,15 +16,8 @@ matplotlib
 seaborn
 
 # Molecular Processing
-rdkit
-openbabel-wheel
-meeko==0.1.dev3
-vina==1.2.2
-pdb2pqr
 biopython
-
-# Docking Tools
-AutoDockTools
+pdb2pqr
 
 # Visualization
 py3Dmol

@@ -13,6 +13,7 @@ FILTERED VERSION:
 """
 
 import os
+import sys
 import json
 import argparse
 import numpy as np
@@ -20,7 +21,9 @@ from pathlib import Path
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import QED, Descriptors
-from rdkit.Contrib.SA_Score import sascorer
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils.evaluation import sascorer
 
 
 def calculate_qed_sa_from_smiles(smiles):
