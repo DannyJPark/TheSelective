@@ -28,6 +28,13 @@ pip install tensorboard==2.9.0 Pillow==9.0.1 scipy==1.7.3
 # Install molecular processing tools
 conda install -c conda-forge openbabel
 pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
+# =======================
+# install autodocktools
+# for linux
+python -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
+# for windows
+python.exe -m pip install git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
+# =======================
 
 # Install remaining dependencies
 pip install -r requirements.txt
