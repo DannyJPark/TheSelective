@@ -14,5 +14,5 @@ sample:
   num_steps: 1000
   center_pos_mode: protein
   num_samples: 100
-  batch_size: 16
+  batch_size: 4
   sample_num_atoms: prior
