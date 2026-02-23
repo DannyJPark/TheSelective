@@ -179,10 +179,10 @@ Evaluate generated molecules with AutoDock Vina:
 python scripts/dock_generated_ligands.py \
     --use_lmdb_only \
     --mode id_specific \
-    --sample_path ./results/theselective_id0_50 \
-    --output_dir ./results/theselective_id0_50/docking_results \
+    --sample_path ./results/theselective/id0_96_high \
+    --output_dir ./results/theselective/id0_96_high/docking_results \
     --on_target_id 0 \
-    --off_target_ids 50 \
+    --off_target_ids 96 \
     --docking_mode vina_dock \
     --exhaustiveness 8 \
     --save_visualization
