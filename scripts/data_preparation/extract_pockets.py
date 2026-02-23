@@ -68,8 +68,8 @@ def process_item(item, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=str, default='./scratch2/data/pdbbind2020')
-    parser.add_argument('--dest', type=str, default='./scratch2/data/pdbbind2020_r10')
+    parser.add_argument('--source', type=str, default='./data/pdbbind2020')
+    parser.add_argument('--dest', type=str, default='./data/pdbbind2020_r10')
     parser.add_argument('--radius', type=int, default=10)
     parser.add_argument('--num_workers', type=int, default=16)
     args = parser.parse_args()

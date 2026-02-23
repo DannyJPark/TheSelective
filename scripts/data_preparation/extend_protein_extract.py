@@ -17,8 +17,8 @@ import glob
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=str, default='./scratch2/data/extended_proteins')
-    parser.add_argument('--dest', type=str, default='./scratch2/data/extended_poc_proteins')
+    parser.add_argument('--source', type=str, default='./data/extended_proteins')
+    parser.add_argument('--dest', type=str, default='./data/extended_poc_proteins')
     parser.add_argument('--radius', type=int, default=10)
     parser.add_argument('--num_workers', type=int, default=16)
     args = parser.parse_args()

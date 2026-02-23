@@ -879,7 +879,10 @@ def calculate_selectivity_scores_by_vina_type(on_target_results, off_target_resu
 def get_sample_protein_info(result_filename, validation_info):
     """Get protein info for the sample based on its filename"""
     filename = os.path.basename(result_filename)[:-3]  # Remove .pt extension
-    
+
+    if validation_info is None:
+        return None
+
     if filename.startswith('result_') and not filename[7:].isdigit():
         # Format: result_BRD4_HUMAN_42_168_0.pt - extract protein_dir
         sample_protein_dir = '_'.join(filename.split('_')[1:])
@@ -1118,8 +1121,10 @@ def main():
     # Atom type mapping function (mode will be passed to the function)
     atom_enc_mode = args.atom_enc_mode
 
-    # Load validation info once for all samples
-    validation_info = load_multipro_validation_info()
+    # Load validation info once for all samples (only needed for multipro mode)
+    validation_info = None
+    if not args.use_lmdb_only:
+        validation_info = load_multipro_validation_info()
 
     # Track copied proteins to avoid duplicates
     copied_proteins = set()

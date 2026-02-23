@@ -6,8 +6,8 @@
 #
 # Prerequisites:
 #   - Trained checkpoint
-#   - tmscore_extreme_pairs.txt in project root
-#   - Data files in ./data/
+#   - ./data/tmscore_extreme_pairs.txt
+#   - Data files in ./data/ (see README for download links)
 
 set -e
 
@@ -49,7 +49,7 @@ echo "Start time: $(date)"
 echo ""
 
 # Check TM-score pairs file
-PAIRS_FILE="${PAIRS_FILE:-tmscore_extreme_pairs.txt}"
+PAIRS_FILE="${PAIRS_FILE:-./data/tmscore_extreme_pairs.txt}"
 if [ ! -f "$PAIRS_FILE" ]; then
     echo "ERROR: $PAIRS_FILE not found!"
     exit 1

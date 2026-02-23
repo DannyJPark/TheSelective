@@ -28,6 +28,9 @@ pip install tensorboard==2.9.0 Pillow==9.0.1 scipy==1.7.3
 # Install molecular processing tools
 conda install -c conda-forge openbabel
 pip install meeko==0.1.dev3 vina==1.2.2 pdb2pqr rdkit
+
+# Install remaining dependencies
+pip install -r requirements.txt
 ```
 
 ## Data Preparation
@@ -36,7 +39,7 @@ Download the following and extract to `./data/`:
 
 | File | Description | Link |
 |------|-------------|------|
-| data.zip | LMDB dataset + split file + CrossDocked pocket structures | [Google Drive](https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link) |
+| data.zip | LMDB dataset + split file + CrossDocked pocket structures + test_set.zip | [Google Drive](https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link) |
 | tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing) |
 
 After extraction, the directory structure should be:
@@ -45,9 +48,12 @@ After extraction, the directory structure should be:
 data/
 ├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb   # Training/test LMDB
 ├── crossdocked_pocket10_pose_split.pt                        # Train/val/test split
-├── crossdocked_pocket10/                                     # Raw protein/ligand structures (for docking)
+├── crossdocked_pocket10/                                     # Pocket structures (pocket PDB + ligand SDF)
+├── test_set/                                                 # Original receptor PDB + ligand files (for docking)
 └── tmscore_extreme_pairs.txt                                 # TM-score pair evaluation list
 ```
+
+> **Note:** `data.zip` includes `test_set.zip` inside it. After extracting `data.zip`, also extract `test_set.zip` into `./data/test_set/`. This directory contains the original full receptor PDB files (e.g., `4xli_B_rec.pdb`) and corresponding ligand files needed by the docking pipeline.
 
 ## Training
 
@@ -62,11 +68,18 @@ bash scripts/train.sh
 ```
 ## Model Checkpoints
 
-Pre-trained model - Download file and replace pt file directory in sampling.yml :
-https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link
-| Model | Checkpoint | Description |
-|-------|------------|-------------|
-| TheSelective | `checkpoints/theselective.pt` | Bidirectional cross-attention (675k iterations) |
+Download the pre-trained model and place it in the `checkpoints/` directory:
+
+```bash
+mkdir -p checkpoints
+# Download theselective.pt from the link below and place in checkpoints/
+```
+
+| Model | Checkpoint | Download | Description |
+|-------|------------|----------|-------------|
+| TheSelective | `checkpoints/theselective.pt` | [Google Drive](https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link) | Bidirectional cross-attention (675k iterations) |
+
+> **Note:** Update the checkpoint path in `configs/sampling.yml` if you use a different location.
 
 
 ## Generation
@@ -132,7 +145,7 @@ bash scripts/run_theselective.sh
 
 ### Result Analysis
 
-results in paper : [https://drive.google.com/file/d/1HCO8HG1zq16hwNar54F3CEbUaEj0cqr7/view?usp=sharing]
+Pre-computed results from the paper: [Google Drive](https://drive.google.com/file/d/1HCO8HG1zq16hwNar54F3CEbUaEj0cqr7/view?usp=sharing)
 
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
@@ -160,6 +173,7 @@ TheSelective/
 │   ├── __init__.py
 │   ├── train_diffusion.py        # Training script
 │   ├── sample_diffusion.py       # Generation with guidance
+│   ├── evaluate_diffusion.py     # Evaluation (validity, QED, SA, Vina)
 │   ├── dock_generated_ligands.py # Docking evaluation (with QED, SA, Validity)
 │   ├── train.sh                  # Training wrapper
 │   └── run_theselective.sh       # Full pipeline (gen + dock)

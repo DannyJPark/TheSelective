@@ -9,7 +9,7 @@ TYPES_FILENAME = 'types/it2_tt_v1.1_completeset_train0.types'  # 'types/it2_tt_c
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=str, default='./scratch2/data/CrossDocked2020')
+    parser.add_argument('--source', type=str, default='./data/CrossDocked2020')
     parser.add_argument('--dest', type=str, required=True)
     parser.add_argument('--rmsd_thr', type=float, default=1.0)
     args = parser.parse_args()

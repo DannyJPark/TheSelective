@@ -163,7 +163,7 @@ class PocketLigandPairDataset(Dataset):
             self.processed_path = os.path.join(os.path.dirname(self.raw_path),
                                                os.path.basename(self.raw_path) + f'_processed_{version}.lmdb')
 
-        self.raw_affinity_path = os.path.join('/data/qianhao', TYPES_FILENAME)
+        self.raw_affinity_path = os.path.join(os.path.dirname(self.raw_path), TYPES_FILENAME)
         self.affinity_path = os.path.join('data', 'affinity_info_complete.pkl')
         self.transform = transform
         self.db = None

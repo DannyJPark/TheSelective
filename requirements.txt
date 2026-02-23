@@ -34,6 +34,15 @@ vina==1.2.2
 pdb2pqr
 biopython
 
+# Docking Tools
+AutoDockTools
+
+# Visualization
+py3Dmol
+
 # Utilities
 joblib
 scikit-learn
+
+# Optional (for experiment tracking)
+# wandb

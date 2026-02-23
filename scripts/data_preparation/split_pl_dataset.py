@@ -41,9 +41,9 @@ def get_unique_pockets(dataset, raw_id, used_pdb, num_pockets):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='pdbbind', choices=['pdbbind', 'crossdock'])
-    parser.add_argument('--path', type=str, default='./scratch2/data/pdbbind2020_r10')
-    parser.add_argument('--dest', type=str, default='./scratch2/data/pdbbind2020_r10_split_based_on_casf.pt')
-    parser.add_argument('--fixed_split', type=str, default='./scratch2/data/pdbbind_split_casf.pt')
+    parser.add_argument('--path', type=str, default='./data/pdbbind2020_r10')
+    parser.add_argument('--dest', type=str, default='./data/pdbbind2020_r10_split_based_on_casf.pt')
+    parser.add_argument('--fixed_split', type=str, default='./data/pdbbind_split_casf.pt')
     parser.add_argument('--train', type=int, default=14000)
     parser.add_argument('--val', type=int, default=1000)
     parser.add_argument('--test', type=int, default=100)
