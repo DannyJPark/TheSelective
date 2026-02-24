@@ -161,9 +161,10 @@ def extract_scores_from_results(results, max_molecules=None, is_reference=False,
 
     Returns:
         Tuple of (on_target_scores, off_target_scores, qed_scores, sa_scores,
-                  vina_scores, vina_mins, filtered_count)
+                  vina_scores, vina_mins, filtered_count, molecule_count)
         where vina_scores and vina_mins are dicts with 'on_target' and 'off_target' keys
         filtered_count is the number of molecules filtered out due to docking failure
+        molecule_count is the total number of molecules processed (before filtering)
     """
     on_target_scores = []
     off_target_scores = []
@@ -181,7 +182,7 @@ def extract_scores_from_results(results, max_molecules=None, is_reference=False,
 
     if not results:
         return on_target_scores, off_target_scores, qed_scores, sa_scores, \
-               {'on_target': [], 'off_target': []}, {'on_target': [], 'off_target': []}, filtered_count
+               {'on_target': [], 'off_target': []}, {'on_target': [], 'off_target': []}, filtered_count, 0
 
     # Handle both list and dict formats
     if isinstance(results, list):
@@ -525,7 +526,7 @@ def extract_scores_from_results(results, max_molecules=None, is_reference=False,
         vina_scores = {'on_target': filtered_vina_score_on, 'off_target': filtered_vina_score_off}
         vina_mins = {'on_target': filtered_vina_min_on, 'off_target': filtered_vina_min_off}
 
-    return on_target_scores, off_target_scores, qed_scores, sa_scores, vina_scores, vina_mins, filtered_count
+    return on_target_scores, off_target_scores, qed_scores, sa_scores, vina_scores, vina_mins, filtered_count, molecule_count
 
 
 def calculate_selectivity(on_scores, off_scores):
@@ -606,7 +607,7 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
                 max_mols = 8
             else:
                 max_mols = None
-            on_scores, off_scores, qed_scores, sa_scores, vina_scores, vina_mins, filtered_count = extract_scores_from_results(results, max_molecules=max_mols, is_reference=is_reference, filter_failed_docking=filter_failed_docking)
+            on_scores, off_scores, qed_scores, sa_scores, vina_scores, vina_mins, filtered_count, total_generated = extract_scores_from_results(results, max_molecules=max_mols, is_reference=is_reference, filter_failed_docking=filter_failed_docking)
             selectivities = calculate_selectivity(on_scores, off_scores)
 
             # Track filtered molecules count (docking failures with score >= 0)
@@ -833,6 +834,7 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
                 'sel_gt4_pct': sel_gt4_pct,
                 'sel_gt4_pct_total': sel_gt4_pct_total,
                 'num_molecules': len(on_scores),
+                'total_generated': total_generated,  # Total molecules in results file (before filtering)
                 'docking_failures': docking_failures,  # Number of molecules filtered out due to score >= 0
                 'on_target_scores': on_scores,  # Store individual scores for molecule-level comparison
                 'off_target_scores': off_scores,  # Store off-target scores for both conditions check
@@ -849,7 +851,8 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
 def aggregate_results(all_pairs_results):
     """Aggregate results across all pairs."""
     aggregated = defaultdict(lambda: defaultdict(list))
-    total_molecules = defaultdict(int)  # Track total molecules per model
+    total_molecules = defaultdict(int)  # Track total valid molecules per model
+    total_generated_all = defaultdict(int)  # Track total generated molecules per model (before filtering)
     better_than_reference = defaultdict(lambda: {'count': 0, 'total': 0})  # Track pairs better than Reference
     better_than_reference_total = defaultdict(int)  # Track total molecules better than Reference (out of 400)
 
@@ -863,6 +866,9 @@ def aggregate_results(all_pairs_results):
                 num_mols = model_data.get('num_molecules', 0)
                 if num_mols > 0:
                     total_molecules[model_name] += num_mols
+                total_gen = model_data.get('total_generated', 0)
+                if total_gen > 0:
+                    total_generated_all[model_name] += total_gen
 
                 # Compare with Reference at pair level (using mean)
                 if model_name != 'Reference' and model_data.get('on_target_mean') is not None:
@@ -1027,6 +1033,7 @@ def aggregate_results(all_pairs_results):
 
         # Add total molecules count
         final_stats[model_name]['total_molecules'] = total_molecules.get(model_name, 0)
+        final_stats[model_name]['total_generated'] = total_generated_all.get(model_name, 0)
 
         # Get total molecules for this model for percentage calculations
         model_total_mols = total_molecules.get(model_name, 0)
@@ -1191,8 +1198,8 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
     print("AGGREGATED RESULTS - TABLE 1: BASIC METRICS (AVERAGE ACROSS ALL LOW TM-SCORE PAIRS)")
     print("=" * 200)
     print()
-    print(f"{'Model':<25} {'On-Tgt(Mean)':<14} {'On-Tgt(Med)':<14} {'Off-Tgt(Mean)':<14} {'Off-Tgt(Med)':<14} {'Select(Mean)':<14} {'Select(Med)':<14} {'QED(Mean)':<12} {'QED(Med)':<12} {'SA(Mean)':<11} {'SA(Med)':<11} {'Success%':<12}")
-    print("-" * 200)
+    print(f"{'Model':<25} {'On-Tgt(Mean)':<14} {'On-Tgt(Med)':<14} {'Off-Tgt(Mean)':<14} {'Off-Tgt(Med)':<14} {'Select(Mean)':<14} {'Select(Med)':<14} {'QED(Mean)':<12} {'QED(Med)':<12} {'SA(Mean)':<11} {'SA(Med)':<11} {'Success(V/T)':<16}")
+    print("-" * 204)
 
     for model_name in ['Reference', 'TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'TheSelective']:
         if model_name in final_stats:
@@ -1204,12 +1211,13 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
             qed_mean = stats.get('qed_mean_overall_mean', None)
             sa_mean = stats.get('sa_mean_overall_mean', None)
             total_mols = stats.get('total_molecules', 0)
+            total_gen = stats.get('total_generated', 0)
 
-            # Calculate success rate: Reference /100*100%, others /800*100%
-            if model_name == 'Reference':
-                success_rate = (total_mols / 100) * 100
+            # Calculate success rate: valid molecules / total generated molecules
+            if total_gen > 0:
+                success_rate = (total_mols / total_gen) * 100
             else:
-                success_rate = (total_mols / 800) * 100
+                success_rate = 0.0
 
             # Reference: median of all values (since 1 ligand per pair)
             # Other models: mean of per-pair medians
@@ -1237,7 +1245,7 @@ def print_detailed_report(all_pairs_results, final_stats, filter_failed_docking=
                   f"{f'{qed_median:.3f}' if qed_median else 'N/A':<12} "
                   f"{f'{sa_mean:.3f}' if sa_mean else 'N/A':<11} "
                   f"{f'{sa_median:.3f}' if sa_median else 'N/A':<11} "
-                  f"{f'{success_rate:.1f}%':<12}")
+                  f"{f'{success_rate:.1f}% ({total_mols}/{total_gen})':<16}")
 
     # ========== VINA SCORE/MIN COMPARISON TABLE ==========
     print("\n" + "=" * 250)
