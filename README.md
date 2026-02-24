@@ -69,18 +69,8 @@ Download the following and extract to `./data/`:
 | data.zip | LMDB dataset + split file + CrossDocked pocket structures + test_set.zip | [Google Drive](https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link) |
 | tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing) |
 
-After extraction, the directory structure should be:
-
-```
-data/
-├── crossdocked_v1.1_rmsd1.0_pocket10_processed_final.lmdb   # Training/test LMDB
-├── crossdocked_pocket10_pose_split.pt                        # Train/val/test split
-├── test_set/                                                 # Original receptor PDB + ligand files (for docking)
-└── tmscore_extreme_pairs.txt                                 # TM-score pair evaluation list
-```
-
 > **Note:** `data.zip` includes `test_set.zip` inside it. After extracting `data.zip`, also extract `test_set.zip` into `./data/test_set/`. This directory contains the original full receptor PDB files (e.g., `4xli_B_rec.pdb`) and corresponding ligand files needed by the docking pipeline.
-## Project Structure
+## Overall Project Structure
 
 ```
 TheSelective/
