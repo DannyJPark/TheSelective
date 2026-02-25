@@ -37,6 +37,8 @@ PyG must match your PyTorch + CUDA combination. Visit **[PyG Installation](https
 Example for PyTorch 1.11.0 + CUDA 11.3:
 ```bash
 conda install pytorch-scatter pytorch-cluster pytorch-sparse==0.6.13 pyg==2.0.4 -c pyg
+
+pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cu113.html
 ```
 
 #### Step 3: Install remaining dependencies
