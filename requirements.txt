@@ -1,5 +1,5 @@
 # Scientific Computing
-numpy==1.21.6
+numpy>=1.23.0,<2.0.0
 pandas==1.4.1
 scipy==1.7.3
 
@@ -10,7 +10,8 @@ lmdb
 
 # Visualization and Logging
 tensorboard==2.9.0
-Pillow==9.0.1
+protobuf<=3.20.3
+Pillow>=9.1.0
 tqdm
 matplotlib
 seaborn
