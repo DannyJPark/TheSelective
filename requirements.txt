@@ -11,7 +11,7 @@ lmdb
 # Visualization and Logging
 tensorboard==2.9.0
 protobuf<=3.20.3
-Pillow>=9.1.0
+Pillow>=9.1.0,<10.0.0
 tqdm
 matplotlib
 seaborn
