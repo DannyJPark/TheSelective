@@ -42,9 +42,10 @@ conda install pytorch-scatter pytorch-cluster pytorch-sparse==0.6.13 pyg==2.0.4 
 #### Step 3: Install remaining dependencies
 
 ```bash
-# Core dependencies
-pip install pyyaml easydict lmdb numpy==1.21.6 pandas==1.4.1
-pip install tensorboard==2.9.0 Pillow==9.0.1 scipy==1.7.3
+# Core dependencies 
+# (Note: Versions are strictly pinned to prevent C-API, TensorBoard, and Pillow compatibility issues)
+pip install pyyaml easydict lmdb pandas==1.4.1 scipy==1.7.3 tensorboard==2.9.0
+pip install "numpy>=1.23.0,<2.0.0" "protobuf<=3.20.3" "Pillow>=9.1.0"
 
 # Molecular processing tools
 conda install -c conda-forge openbabel
