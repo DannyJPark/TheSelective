@@ -225,8 +225,7 @@ python analysis/analyze_tmscore_high_filtered.py
 python analysis/analyze_tmscore_low_filtered.py
 ```
 ## TroubleShooting
-Note for PyTorch >= 2.6 Users (WeightsUnpickler Error):
-Starting from PyTorch 2.6, the default value of weights_only in torch.load has been strictly changed to True for security reasons. If you encounter a WeightsUnpickler error (e.g., Unsupported global: GLOBAL easydict.EasyDict or numpy arrays) when loading checkpoints or .pt result files, ensure that you add weights_only=False to the torch.load() calls in your scripts (e.g., sample_diffusion.py and dock_generated_ligands.py).
+If you encounter a WeightsUnpickler error (e.g., Unsupported global: GLOBAL easydict.EasyDict or numpy arrays) when loading checkpoints or .pt result files, ensure that you add weights_only=False to the torch.load() calls in your scripts (e.g., sample_diffusion.py and dock_generated_ligands.py).
 ```bash
 # ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
 ```
