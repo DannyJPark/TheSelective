@@ -673,7 +673,7 @@ def dock_to_targets(original_ligand_pos, ligand_atom_types, ligand_aromatic, lig
                 try:
                     # 1. Load result.pt to access original data object
                     # Load the result file to get original data
-                    result_data = torch.load(result_file_path)
+                    result_data = torch.load(result_file_path, weights_only=False)
                     if 'data' in result_data and hasattr(result_data['data'], 'ligand_filename'):
                         ligand_filename = result_data['data'].ligand_filename
                         # Use evaluate_diffusion.py logic: ligand_filename[:10] + '.pdb'
@@ -1135,7 +1135,7 @@ def main():
             sample_protein_info = get_sample_protein_info(result_file, validation_info)
             
             # Load generated data (following evaluate_diffusion.py pattern)
-            result = torch.load(result_file)
+            result = torch.load(result_file, weights_only=False)
 
             # Support both formats:
             # 1. Original format: pred_ligand_pos_traj [num_samples, num_steps, num_atoms, 3]
