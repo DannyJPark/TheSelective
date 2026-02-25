@@ -1,6 +1,6 @@
 # TheSelective: Dual Affinity-Guided Diffusion for Selective Molecule Generation
 
-Official implementation of **TheSelective**, a dual-head diffusion model for generating molecules with high selectivity towards target proteins while minimizing off-target binding.
+Official implementation of **TheSelective**, a dual-head diffusion model for generating molecules with high selectivity towards target proteins.
 
 ## Installation
 
@@ -117,7 +117,7 @@ TheSelective/
 ## Training
 
 ```bash
-python scripts/train_diffusion.py --config configs/training.yml --tag my_experiment
+python scripts/train_diffusion.py --config configs/training.yml
 ```
 
 Or use the wrapper script:
