@@ -110,7 +110,7 @@ def main():
 
     # Load checkpoint
     logger.info(f'Loading checkpoint: {args.ckpt}')
-    ckpt = torch.load(args.ckpt, map_location=args.device)
+    ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
 
     # Get config from checkpoint
     train_config = ckpt['config']
