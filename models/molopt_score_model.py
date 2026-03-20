@@ -467,6 +467,8 @@ class ScorePosNet3D(nn.Module):
             'final_ligand_h': final_ligand_h,
             'atom_affinity': atom_affinity,
             'final_exp_pred': final_exp_pred,
+            'pred_affinity_head1': final_exp_pred,
+            'atom_affinity_head1': atom_affinity,
             'batch_all': batch_all,
             'mask_ligand': mask_ligand
         }
@@ -1513,8 +1515,8 @@ class ScorePosNet3D(nn.Module):
                         ligand_pos_h1 = ligand_pos.detach().requires_grad_(True)
                         ligand_v_onehot = F.one_hot(ligand_v, self.num_classes).float().requires_grad_(True)
 
-                        # Use forward_dual_head to get Head1 prediction (WITH interaction)
-                        preds_on = self.forward_dual_head(
+                        # Head1 forward pass (WITH interaction)
+                        preds_on = self(
                             protein_pos=protein_pos_on,
                             protein_v=protein_v,
                             batch_protein=batch_protein,
@@ -1553,7 +1555,7 @@ class ScorePosNet3D(nn.Module):
                     torch.cuda.empty_cache()
                 else:
                     with torch.no_grad():
-                        preds_on = self.forward_dual_head(
+                        preds_on = self(
                             protein_pos=protein_pos_on,
                             protein_v=protein_v,
                             batch_protein=batch_protein,
@@ -1644,8 +1646,8 @@ class ScorePosNet3D(nn.Module):
                         ligand_pos_h1 = ligand_pos.detach().requires_grad_(True)
                         ligand_v_onehot = F.one_hot(ligand_v, self.num_classes).float().requires_grad_(True)
 
-                        # Use forward_dual_head to get Head1 prediction (WITH interaction)
-                        preds_on = self.forward_dual_head(
+                        # Head1 forward pass (WITH interaction)
+                        preds_on = self(
                             protein_pos=protein_pos_on,
                             protein_v=protein_v,
                             batch_protein=batch_protein,
@@ -1684,7 +1686,7 @@ class ScorePosNet3D(nn.Module):
                     torch.cuda.empty_cache()
                 else:
                     with torch.no_grad():
-                        preds_on = self.forward_dual_head(
+                        preds_on = self(
                             protein_pos=protein_pos_on,
                             protein_v=protein_v,
                             batch_protein=batch_protein,
