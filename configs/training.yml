@@ -57,7 +57,7 @@ model:
 train:
   seed: 2021
   batch_size: 2
-  num_workers: 1
+  num_workers: 0
   n_acc_batch: 2
   max_iters: 10000000
   val_freq: 1000

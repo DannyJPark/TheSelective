@@ -281,6 +281,14 @@ def main():
                 loss_head1 = loss_exp
                 loss_head2 = torch.tensor(0.0)
 
+            # === Physics-informed vdW loss with PIDiff-style curriculum ramp ===
+            # total vdW weight = loss_vdw_weight * (it / vdw_ramp_iters)   [uncapped, PIDiff-style]
+            loss_vdw = results.get('loss_vdw', None)
+            vdw_weight = getattr(config.model, 'loss_vdw_weight', 0.)
+            if loss_vdw is not None and vdw_weight > 0:
+                ramp_iters = getattr(config.train, 'vdw_ramp_iters', 200000)
+                loss = loss + vdw_weight * (it / ramp_iters) * loss_vdw
+
             loss = loss / config.train.n_acc_batch
             loss.backward()
 
@@ -332,6 +340,15 @@ def main():
                 if use_dual_head:
                     wandb_log['train/loss_head1'] = float(loss_head1)
                     wandb_log['train/loss_head2'] = float(loss_head2)
+                # Physics-informed vdW loss (single-head + physics path). Log the raw
+                # vdW energy, the PIDiff-style ramp factor, and the effective (weighted)
+                # term actually added to the total loss.
+                if loss_vdw is not None:
+                    ramp_iters = getattr(config.train, 'vdw_ramp_iters', 200000)
+                    vdw_ramp = it / ramp_iters
+                    wandb_log['train/loss_vdw'] = float(loss_vdw)
+                    wandb_log['train/vdw_ramp'] = vdw_ramp
+                    wandb_log['train/loss_vdw_weighted'] = float(vdw_weight * vdw_ramp * loss_vdw)
                 wandb.log(wandb_log, step=it)
 
     def validate(it):

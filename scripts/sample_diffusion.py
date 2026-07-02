@@ -110,7 +110,7 @@ def main():
 
     # Load checkpoint
     logger.info(f'Loading checkpoint: {args.ckpt}')
-    ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
+    ckpt = torch.load(args.ckpt, map_location=args.device)
 
     # Get config from checkpoint
     train_config = ckpt['config']
@@ -326,6 +326,18 @@ def main():
         if args.device == 'cuda':
             torch.cuda.empty_cache()
 
+    # Unbatch exp trajectories for per-sample saving
+    all_exp_on_traj_per_sample = []
+    all_exp_off_traj_per_sample = []
+    if all_pred_exp_on_traj:
+        exp_on_traj_all = torch.cat(all_pred_exp_on_traj, dim=1).numpy()  # [num_steps, total_samples]
+        for i in range(exp_on_traj_all.shape[1]):
+            all_exp_on_traj_per_sample.append(exp_on_traj_all[:, i])
+    if all_pred_exp_off_traj:
+        exp_off_traj_all = torch.cat(all_pred_exp_off_traj, dim=1).numpy()  # [num_steps, total_samples]
+        for i in range(exp_off_traj_all.shape[1]):
+            all_exp_off_traj_per_sample.append(exp_off_traj_all[:, i])
+
     # Save results (compatible with docking script)
     for idx in range(len(all_pred_pos)):
         result_file = os.path.join(result_path, f'result_{idx}.pt')
@@ -336,6 +348,8 @@ def main():
             'exp_off': all_pred_exp_off[idx],
             'pos_traj': all_pred_pos_traj[idx] if all_pred_pos_traj else None,
             'v_traj': all_pred_v_traj[idx] if all_pred_v_traj else None,
+            'exp_on_traj': all_exp_on_traj_per_sample[idx] if all_exp_on_traj_per_sample else None,
+            'exp_off_traj': all_exp_off_traj_per_sample[idx] if all_exp_off_traj_per_sample else None,
         }, result_file)
 
     # Save summary

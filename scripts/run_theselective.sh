@@ -32,7 +32,7 @@ W_OFF=1.0
 
 # Sampling settings
 BATCH_SIZE=4
-NUM_SAMPLES=8
+NUM_SAMPLES=40
 
 # Result path
 BASE_RESULT_PATH="${BASE_RESULT_PATH:-./results/theselective}"
@@ -191,7 +191,7 @@ while IFS=',' read -r target_id high_off_id high_score low_off_id low_score; do
         fi
 
         echo "  [HIGH] Docking molecules for ($target_id, $high_off_id)..."
-        if python scripts/dock_generated_ligands.py \
+        if taskset -c 0-19 python scripts/dock_generated_ligands.py \
             --use_lmdb_only \
             --mode id_specific \
             --sample_path "$RESULT_PATH_HIGH" \
@@ -219,7 +219,7 @@ while IFS=',' read -r target_id high_off_id high_score low_off_id low_score; do
         fi
 
         echo "  [LOW] Docking molecules for ($target_id, $low_off_id)..."
-        if python scripts/dock_generated_ligands.py \
+        if taskset -c 0-19 python scripts/dock_generated_ligands.py \
             --use_lmdb_only \
             --mode id_specific \
             --sample_path "$RESULT_PATH_LOW" \
