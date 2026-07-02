@@ -1,5 +1,7 @@
-# TheSelective Training Configuration
-# Unified dual-head model with bidirectional cross-attention
+# TheSelective — PIDiff-style single-head + van der Waals physics loss (from-scratch)
+# - Single-head KGDiff-style loss_exp (use_dual_head_sam_pl: False)
+# - PIDiff Lennard-Jones vdW loss with PIDiff-style curriculum ramp (it / vdw_ramp_iters)
+# Run:  python scripts/train_diffusion.py --config configs/training_pidiff_vdw_singlehead.yml
 
 data:
   name: pl
@@ -20,6 +22,11 @@ model:
   num_diffusion_timesteps: 1000
   loss_v_weight: 100.
   loss_exp_weight: 1.
+  # Physics-informed van der Waals loss (PIDiff).
+  # Effective weight = loss_vdw_weight * (it / vdw_ramp_iters)  [applied in the train loop]
+  loss_vdw_weight: 1.0          # set 0. to disable (use for the no-physics baseline run)
+  vdw_loss_mode: pidiff_exact   # 'pidiff_exact' (PIDiff sum dE/dd, double backward) | 'lj' (clean LJ12-6 energy)
+  vdw_dm_min: 0.5
   sample_time_method: symmetric
   affinity_with_diffusion: False
   use_classifier_guide: True
@@ -51,7 +58,7 @@ model:
   sync_twoup: False
 
   # Dual Head Configuration
-  use_dual_head_sam_pl: True
+  use_dual_head_sam_pl: False   # single-head KGDiff-style loss_exp (per user: no dual head)
   head2_mode: bidirectional_query_atom
 
 train:
@@ -59,7 +66,8 @@ train:
   batch_size: 2
   num_workers: 0
   n_acc_batch: 2
-  max_iters: 10000000
+  max_iters: 100000000
+  vdw_ramp_iters: 200000        # PIDiff-style linear ramp: vdW weight grows as it / vdw_ramp_iters (uncapped)
   val_freq: 1000
   pos_noise_std: 0.1
   max_grad_norm: 8.0

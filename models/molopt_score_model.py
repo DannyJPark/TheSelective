@@ -205,6 +205,12 @@ class ScorePosNet3D(nn.Module):
         self.sample_time_method = config.sample_time_method # ['importance', 'symmetric']
         self.use_classifier_guide = config.use_classifier_guide
 
+        # === Physics-informed van der Waals loss (PIDiff) ===
+        # Raw vdW energy is computed in get_diffusion_loss; the base weight and the
+        # PIDiff-style curriculum ramp (it / vdw_ramp_iters) are applied in the train loop.
+        self.vdw_loss_mode = getattr(config, 'vdw_loss_mode', 'lj')  # 'lj' | 'pidiff_exact'
+        self.vdw_dm_min = getattr(config, 'vdw_dm_min', 0.5)
+
         # Beta schedule
         if config.beta_schedule == 'cosine':
             alphas = cosine_beta_schedule(config.num_diffusion_timesteps, config.pos_beta_s) ** 2
@@ -859,6 +865,42 @@ class ScorePosNet3D(nn.Module):
         loss_v = scatter_mean(mask * decoder_nll_v + (1. - mask) * kl_v, batch, dim=0)
         return loss_v
 
+    def compute_vdw_loss(self, pred_ligand_pos, protein_pos, batch_ligand, batch_protein, num_graphs):
+        """
+        Physics-informed van der Waals penalty between predicted ligand atom
+        positions (x0) and the fixed protein atoms, Lennard-Jones 12-6 (PIDiff).
+        Self-contained: a pure function of geometry. Returns a scalar (sum over
+        all ligand-protein pairs, averaged over graphs in the batch).
+
+        vdw_loss_mode:
+          'lj'           -> clean LJ 12-6 energy (1/d)^12 - 2(1/d)^6, single backward
+          'pidiff_exact' -> PIDiff original: loss = sum_ij dE/dd (double backward via create_graph)
+        Under torch.no_grad() (validation) it falls back to the plain energy so it never crashes.
+        """
+        dm_min = self.vdw_dm_min
+        total = pred_ligand_pos.new_zeros(())
+        for i in range(num_graphs):
+            lig = pred_ligand_pos[batch_ligand == i]
+            pro = protein_pos[batch_protein == i]
+            if lig.shape[0] == 0 or pro.shape[0] == 0:
+                continue
+            # pairwise distances (manual sqrt with +1e-10 -> finite gradient as d -> 0)
+            diff = lig.unsqueeze(1) - pro.unsqueeze(0)            # (L, P, 3)
+            dm = torch.sqrt((diff ** 2).sum(-1) + 1e-10)          # (L, P)
+            # guard hard clashes so 1/d does not explode
+            dm = torch.where(dm < dm_min, torch.full_like(dm, 1e10), dm)
+
+            inv = 1.0 / dm
+            energy = torch.pow(inv, 12) - 2.0 * torch.pow(inv, 6)
+            energy = energy.clamp(max=100)
+
+            if self.vdw_loss_mode == 'pidiff_exact' and torch.is_grad_enabled() and dm.requires_grad:
+                der = torch.autograd.grad(energy.sum(), dm, retain_graph=True, create_graph=True)[0]
+                total = total + der.sum()
+            else:
+                total = total + energy.sum()
+        return total / max(num_graphs, 1)
+
     def get_diffusion_loss(self, protein_pos, protein_v, affinity, batch_protein, ligand_pos, ligand_v, batch_ligand, time_step=None):
         """
         Original KGDiff diffusion loss (single head).
@@ -924,10 +966,14 @@ class ScorePosNet3D(nn.Module):
         else:
             loss = loss_pos + loss_v * self.loss_v_weight
 
+        # Physics-informed van der Waals loss (raw energy; weight + PIDiff ramp applied in train loop)
+        loss_vdw = self.compute_vdw_loss(pred_ligand_pos, protein_pos, batch_ligand, batch_protein, num_graphs)
+
         return {
             'loss_pos': loss_pos,
             'loss_v': loss_v,
             'loss_exp': loss_exp,
+            'loss_vdw': loss_vdw,
             'loss': loss,
             'x0': ligand_pos,
             'pred_ligand_pos': pred_ligand_pos,

@@ -3,7 +3,7 @@
 
 model:
   # Checkpoint path (update to your trained checkpoint)
-  joint_ckpt: './checkpoints/theselective.pt'
+  joint_ckpt: './logs_diffusion/training_2026_02_26__09_30_47/checkpoints/844000.pt'
 
   # Edge configuration (must match training)
   cutoff_mode: knn
@@ -13,6 +13,6 @@ sample:
   seed: 42
   num_steps: 1000
   center_pos_mode: protein
-  num_samples: 100
+  num_samples: 4
   batch_size: 4
   sample_num_atoms: prior

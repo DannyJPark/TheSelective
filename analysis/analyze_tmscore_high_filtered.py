@@ -640,7 +640,7 @@ def analyze_pair(on_id, off_id, tmscore, filter_failed_docking=True):
             # Only normalize SA for Reference model
             is_reference = (model_name == 'Reference')
             # Limit TargetDiff, KGDiff, BInD, and Unified models to 8 molecules per pair for fair comparison
-            if model_name in ['TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2', 'TheSelective'] or model_name.startswith('head2_atom') or model_name.startswith('head2_1p'):
+            if model_name in ['TargetDiff', 'KGDiff', 'KGDiff2', 'BInD', 'Unified_H1H2_BiNG', 'Unified_H1_BiOn', 'Unified_H2_BiOff', 'Unified_ProType', 'Unified_ProPos', 'Unified_LigType', 'Unified_LigPos', 'Unified_BiType', 'Unified_BiPos', 'Unified_BiPos_500', 'Unified_BiPos_500_v2'] or model_name.startswith('head2_atom') or model_name.startswith('head2_1p'):
                 max_mols = 8
             else:
                 max_mols = None

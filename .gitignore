@@ -74,3 +74,13 @@ pretrained/
 # Images (keep for README if needed)
 # *.png
 # *.jpg
+
+# Docking / analysis data & logs (large or machine-specific)
+temp_docked_poses/
+analysis/figures/
+analysis/affinity_eval/
+run_*_log_*.txt
+run_theselective_log_*.txt
+run_resume_docking_log_*.txt
+tmscore_pairs_analysis_*.txt
+*.png
