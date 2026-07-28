@@ -71,8 +71,8 @@ Download the following and extract to `./data/`:
 
 | File | Description | Link |
 |------|-------------|------|
-| data.zip | LMDB dataset + split file + CrossDocked pocket structures + test_set.zip | [Google Drive](https://drive.google.com/file/d/1YlPio7GMjS95Ca827rHEy0GXkVuvhSBd/view?usp=drive_link) |
-| tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1nFYCJDvTAhA1EwTc2ZyexX47V1x4HBMX/view?usp=sharing) |
+| data.zip | LMDB dataset + split file + CrossDocked pocket structures + test_set.zip | [Google Drive](https://drive.google.com/file/d/1TbEoMAgx4oOuiTIMgEtSv-MSqJcZEcuV/view?usp=sharing) |
+| tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1o8LRdtvf9RZcaiRPP85JYkiUclrKLqDR/view?usp=sharing) |
 
 > **Note:** `data.zip` includes `test_set.zip` inside it. After extracting `data.zip`, also extract `test_set.zip` into `./data/test_set/`. This directory contains the original full receptor PDB files (e.g., `4xli_B_rec.pdb`) and corresponding ligand files needed by the docking pipeline.
 ## Overall Project Structure
@@ -141,7 +141,7 @@ mkdir -p checkpoints
 
 | Model | Checkpoint | Download | Description |
 |-------|------------|----------|-------------|
-| TheSelective | `checkpoints/theselective.pt` | [Google Drive](https://drive.google.com/file/d/1Fr2nK1Yky-LWzJ2o_05D0nUgXuXtQxo7/view?usp=drive_link) | Bidirectional cross-attention (675k iterations) |
+| TheSelective | `checkpoints/theselective.pt` | [Google Drive](https://drive.google.com/file/d/1yIPyyngMQChx4ZveNCxJM11JFYp4ktdz/view?usp=sharing) | Bidirectional cross-attention (675k iterations) |
 
 > **Note:** Update the checkpoint path in `configs/sampling.yml` if you use a different location.
 
@@ -213,10 +213,10 @@ bash scripts/run_theselective.sh
 
 ### Result Analysis
 
-Generated Molecules & Docking results from the paper: [Google Drive](https://drive.google.com/file/d/1HCO8HG1zq16hwNar54F3CEbUaEj0cqr7/view?usp=sharing)
+Generated Molecules & Docking results from the paper: [Google Drive](https://drive.google.com/file/d/1nbUjIS_I1HQzeJPkHPvZqEr6SAoSG-co/view?usp=sharing)
 
-The Main Table & Ablation Table Results (with Baselines Compared) are in:[TM-High](https://drive.google.com/file/d/1BULQcQktdzPSpjc1zo7dCqEWuh7V3hfL/view?usp=drive_link)
-[TM-Low](https://drive.google.com/file/d/1yO8s-ldOVwGTgXyX4w_TgtPihhlsmgbT/view?usp=drive_link)
+The Main Table & Ablation Table Results (with Baselines Compared) are in:[TM-High](https://drive.google.com/file/d/1oV4pkHLvI8BgNEZeNnnSi-gu3RMTXXAo/view?usp=sharing)
+[TM-Low](https://drive.google.com/file/d/1uhDwfm75fAH8WY2oNJKUiRYCP0GyoFtl/view?usp=sharing)
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
 python analysis/analyze_tmscore_high_filtered.py
