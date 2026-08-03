@@ -392,7 +392,7 @@ This work builds upon:
 [Homepage](https://dannyjpark.github.io/) ·
 [Google Scholar](https://scholar.google.com/citations?user=TJPGDTUAAAAJ)
 
-Data Mining Laboratory, Department of Computer Science, Yonsei University
+Data Engineering LAB, Department of Computer Science, Yonsei University
 Advisor: Prof. Sanghyun Park
 
 For licensing inquiries, please contact the Yonsei University Industry–Academic Cooperation Foundation.
