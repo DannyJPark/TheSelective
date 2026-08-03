@@ -1,6 +1,87 @@
-# TheSelective: Dual Affinity-Guided Diffusion for Selective Molecule Generation
+# TheSelective: Dual Affinity-Guided Diffusion for Selective Molecular Generation
 
-Official implementation of **TheSelective**, a dual-head diffusion model for generating molecules with high selectivity towards target proteins.
+[![Paper](https://img.shields.io/badge/PAKDD%202026-Paper-1d4ed8.svg)](https://doi.org/10.1007/978-981-92-1462-4_2)
+[![Patent](https://img.shields.io/badge/Patent-Pending-b45309.svg)](#license-and-patent-notice)
+[![License](https://img.shields.io/badge/Code%20License-MIT-047857.svg)](LICENSE)
+[![Python 3.9](https://img.shields.io/badge/Python-3.9-3776ab.svg)](https://www.python.org/downloads/)
+
+Official implementation of **TheSelective** (PAKDD 2026), a diffusion framework that generates 3D ligands optimized for *selectivity* — maximizing the binding affinity gap between an intended target and a potential off-target.
+
+---
+
+## Overview
+
+Existing structure-based drug design (SBDD) models maximize absolute potency toward a single target and leave **selectivity** — the affinity gap between the intended target and off-targets — uncontrolled.
+
+TheSelective addresses two obstacles:
+
+1. **Spatial reference frame mismatch.** Ligands are generated inside the on-target's coordinate system, so the off-target protein — which occupies a separate 3D frame — cannot be modeled by the same complex graph. Noisy intermediate ligands are also chemically invalid, so docking cannot be used during generation.
+2. **Multi-objective divergence.** On- and off-target pockets diverge geometrically and chemically, so guidance must manage a trade-off rather than optimize a single signal.
+
+**Contributions:**
+
+- **Alignment-free off-target prediction.** An asymmetric dual-affinity predictor: a complex-graph head for on-target affinity, and a bidirectional **cross-attention** head over *independent* protein and ligand embeddings for off-target affinity. No docking or 3D alignment required during generation.
+- **Scheduled dual-affinity guidance.** On-target attractive and off-target repulsive gradients are injected into both atom coordinates and atom types. A transition timestep `t_s` removes off-target guidance in later denoising steps, preventing interference during fine-grained refinement.
+
+<p align="center">
+  <em>On-target attractive guidance + off-target repulsive guidance, applied to both coordinates and atom types.</em>
+</p>
+
+---
+
+## Results
+
+Evaluated on **CrossDocked2020** (~100k training pairs, 100 test proteins; RMSD < 1Å, sequence identity < 30% between splits). Each test pocket is paired with a structurally similar protein (**TM-High**) or a geometrically distinct one (**TM-Low**).
+
+`Selectivity = Off-Dock − On-Dock` (kcal/mol). Higher is better.
+**Avg.** = mean of per-pair average scores, **Med.** = mean of per-pair median scores.
+
+### TM-High — structurally similar off-targets
+
+| Model | On-Dock ↓ | Off-Dock ↑ | Selectivity ↑ | QED ↑ | SA ↑ | Success |
+|---|---|---|---|---|---|---|
+| Reference | -7.400 / -7.179 | -7.168 / -7.056 | 0.231 / 0.083 | 0.482 / 0.469 | 0.736 / 0.745 | 98% |
+| BInD | -7.510 / -7.569 | **-7.391 / -7.422** | 0.120 / 0.062 | 0.505 / 0.503 | 0.658 / 0.661 | 88.1% |
+| TargetDiff | -7.583 / -7.577 | -7.405 / -7.391 | 0.178 / 0.165 | 0.469 / 0.466 | 0.585 / 0.591 | 91.0% |
+| KGDiff | -9.290 / -9.309 | -8.446 / -8.466 | 0.844 / 0.727 | **0.527 / 0.537** | 0.548 / 0.550 | 85.6% |
+| **TheSelective** | **-9.969 / -9.958** | -8.994 / -9.001 | **0.975 / 0.923** | 0.495 / 0.500 | 0.534 / 0.535 | 50.2% |
+
+→ **+15.5% (Avg.)** and **+27.0% (Med.)** selectivity over the strongest baseline (KGDiff), with the best on-target docking score.
+
+### TM-Low — structurally dissimilar off-targets
+
+| Model | On-Dock ↓ | Off-Dock ↑ | Selectivity ↑ | QED ↑ | SA ↑ | Success |
+|---|---|---|---|---|---|---|
+| Reference | -7.451 / -7.293 | -5.414 / -5.424 | 2.037 / 1.869 | 0.475 / 0.469 | 0.728 / 0.740 | 97% |
+| BInD | -7.536 / -7.589 | -5.608 / -5.643 | 1.928 / 1.934 | 0.502 / 0.500 | 0.654 / 0.656 | 89.1% |
+| TargetDiff | -7.566 / -7.552 | -5.567 / -5.564 | 1.999 / 1.993 | 0.467 / 0.464 | 0.583 / 0.591 | 91.9% |
+| KGDiff | -9.343 / -9.366 | -6.345 / -6.393 | 2.998 / 2.980 | **0.528 / 0.538** | 0.546 / 0.549 | 85.6% |
+| **TheSelective** | **-9.954 / -9.909** | **-6.591 / -6.588** | **3.363 / 3.259** | 0.511 / 0.514 | 0.557 / 0.561 | 56.9% |
+
+→ **+12.2% (Avg.)** and **+9.4% (Med.)** selectivity over KGDiff.
+
+### Ablation — guidance configuration
+
+| Configuration | TM-High Selectivity ↑ | TM-Low Selectivity ↑ |
+|---|---|---|
+| No Guide | 0.165 / 0.112 | 2.121 / 2.064 |
+| On-Target Guide only | 0.636 / 0.536 | 2.843 / 2.756 |
+| Off-Target Guide only | 0.036 / 0.047 | 2.251 / 2.216 |
+| Dual Guide (unscheduled) | 0.628 / 0.588 | 2.953 / 2.890 |
+| **Dual Guide, Scheduled** | **0.975 / 0.923** | **3.363 / 3.259** |
+
+Temporal scheduling alone lifts TM-High selectivity from **0.628 → 0.975 (+55.3%)**: the model first establishes a selectivity-aware scaffold, then refines on-target binding without continued off-target perturbation.
+
+### Case studies
+
+| Pair | On-Target | Off-Target | Reference Δ | TheSelective Δ |
+|---|---|---|---|---|
+| TM-High | 4XLI (ABL2 kinase) | 4IWQ (TBK1) | 0.389 | **2.505** |
+| TM-Low | 4Z2G (chitinase B) | 2GNS (phospholipase A₂) | 1.611 | **3.704** |
+
+> **Known limitation.** The dual objective reduces the reconstruction success rate (50.2% / 56.9% vs. 85.6% for KGDiff), reflecting the inherent tension between on-target potency and off-target avoidance. Integrating validity-aware constraints into the guidance process is left for future work.
+
+---
 
 ## Installation
 
@@ -46,7 +127,7 @@ pip install torch-geometric
 #### Step 3: Install remaining dependencies
 
 ```bash
-# Core dependencies 
+# Core dependencies
 # (Note: Versions are strictly pinned to prevent C-API, TensorBoard, and Pillow compatibility issues)
 pip install pyyaml easydict lmdb pandas==1.4.1 tensorboard==2.9.0
 pip install "numpy>=1.23.0,<1.24.0" "protobuf<=3.20.3" "Pillow>=9.1.0"
@@ -75,6 +156,7 @@ Download the following and extract to `./data/`:
 | tmscore_extreme_pairs.txt | TM-score pair list for evaluation | [Google Drive](https://drive.google.com/file/d/1o8LRdtvf9RZcaiRPP85JYkiUclrKLqDR/view?usp=sharing) |
 
 > **Note:** `data.zip` includes `test_set.zip` inside it. After extracting `data.zip`, also extract `test_set.zip` into `./data/test_set/`. This directory contains the original full receptor PDB files (e.g., `4xli_B_rec.pdb`) and corresponding ligand files needed by the docking pipeline.
+
 ## Overall Project Structure
 
 ```
@@ -83,7 +165,7 @@ TheSelective/
 │   ├── analyze_tmscore_high_filtered.py  # High TM-score analysis
 │   └── analyze_tmscore_low_filtered.py   # Low TM-score analysis
 ├── checkpoints/
-│   └──theselective.pt
+│   └── theselective.pt
 ├── configs/
 │   ├── training.yml              # Training config (bidirectional_query_atom)
 │   └── sampling.yml              # Sampling config
@@ -115,10 +197,10 @@ TheSelective/
 │   └── ...                       # Utility functions
 ├── README.md
 ├── setup.py
-├── json_to_txt_converter.py
 ├── requirements.txt
 └── .gitignore
 ```
+
 ## Training
 
 ```bash
@@ -130,6 +212,7 @@ Or use the wrapper script:
 ```bash
 bash scripts/train.sh
 ```
+
 ## Model Checkpoints
 
 Download the pre-trained model and place it in the `checkpoints/` directory:
@@ -144,7 +227,6 @@ mkdir -p checkpoints
 | TheSelective | `checkpoints/theselective.pt` | [Google Drive](https://drive.google.com/file/d/1yIPyyngMQChx4ZveNCxJM11JFYp4ktdz/view?usp=sharing) | Bidirectional cross-attention (675k iterations) |
 
 > **Note:** Update the checkpoint path in `configs/sampling.yml` if you use a different location.
-
 
 ## Generation
 
@@ -213,10 +295,12 @@ bash scripts/run_theselective.sh
 
 ### Result Analysis
 
-Generated Molecules & Docking results from the paper: [Google Drive](https://drive.google.com/file/d/1nbUjIS_I1HQzeJPkHPvZqEr6SAoSG-co/view?usp=sharing)
+Generated molecules and docking results from the paper: [Google Drive](https://drive.google.com/file/d/1nbUjIS_I1HQzeJPkHPvZqEr6SAoSG-co/view?usp=sharing)
 
-The Main Table & Ablation Table Results (with Baselines Compared) are in:[TM-High](https://drive.google.com/file/d/1oV4pkHLvI8BgNEZeNnnSi-gu3RMTXXAo/view?usp=sharing)
+Full main-table and ablation-table results (with baselines):
+[TM-High](https://drive.google.com/file/d/1oV4pkHLvI8BgNEZeNnnSi-gu3RMTXXAo/view?usp=sharing) ·
 [TM-Low](https://drive.google.com/file/d/1uhDwfm75fAH8WY2oNJKUiRYCP0GyoFtl/view?usp=sharing)
+
 ```bash
 # Analyze HIGH TM-score pairs (structurally similar proteins)
 python analysis/analyze_tmscore_high_filtered.py
@@ -224,14 +308,91 @@ python analysis/analyze_tmscore_high_filtered.py
 # Analyze LOW TM-score pairs (structurally different proteins)
 python analysis/analyze_tmscore_low_filtered.py
 ```
-## TroubleShooting
-If you encounter a WeightsUnpickler error (e.g., Unsupported global: GLOBAL easydict.EasyDict or numpy arrays) when loading checkpoints or .pt result files, ensure that you add weights_only=False to the torch.load() calls in your scripts (e.g., sample_diffusion.py and dock_generated_ligands.py).
-```bash
-# ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
+
+## Troubleshooting
+
+If you encounter a `WeightsUnpickler` error (e.g., `Unsupported global: GLOBAL easydict.EasyDict` or numpy arrays) when loading checkpoints or `.pt` result files, add `weights_only=False` to the `torch.load()` calls in your scripts (e.g., `sample_diffusion.py`, `dock_generated_ligands.py`):
+
+```python
+ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
 ```
+
+---
+
+## License and Patent Notice
+
+### Patent
+
+The method implemented in this repository is covered by a **pending patent application**:
+
+| | |
+|---|---|
+| **Application No.** | KR 10-2026-0132757 (filed 2026-07-20) |
+| **Priority** | KR 10-2025-0188859 (filed 2025-12-03) |
+| **Title** | Method and system for generating selective ligand |
+| **Applicant / Assignee** | Yonsei University Industry–Academic Cooperation Foundation |
+| **Inventors** | Sanghyun Park, Hyoungjoon Park |
+| **Status** | Pending |
+
+This work was supported by the National Research Foundation of Korea (NRF), funded by the Ministry of Science and ICT (No. RS-2023-00229822).
+
+### Source code — MIT License
+
+The source code in this repository is released under the **MIT License**. See [`LICENSE`](LICENSE) for the full text.
+
+### Patent rights — expressly reserved
+
+**The MIT License above is a copyright license covering the source code only. It does not grant, and shall not be construed as granting, any license under any patent.**
+
+No license under the pending patent application listed above, or under any patent issuing from it, is granted — expressly, by implication, by estoppel, or otherwise — by the publication of this source code or by the MIT License applied to it. Practicing the claimed method, including by executing, modifying, or distributing this code, may require a separate patent license from the assignee.
+
+All patent rights are reserved by the Yonsei University Industry–Academic Cooperation Foundation.
+
+**For patent licensing inquiries, please contact the assignee.**
+
+### Third-party code
+
+This repository incorporates code from projects released under the MIT License. Their original copyright notices are retained in the corresponding source files:
+
+- KGDiff — Copyright (c) 2023 CMACH508
+- TargetDiff — Copyright (c) 2023 Jiaqi Guan
+
+---
+
+## Citation
+
+If you find this work useful, please cite:
+
+```bibtex
+@inproceedings{park2026theselective,
+  title     = {TheSelective: Dual Affinity-Guided Diffusion for Selective Molecular Generation},
+  author    = {Park, Hyoungjoon and Kim, Hwanhee and Choi, Seungyeon and
+               Lee, Seungyong and Kim, Yoonju and Park, Sanghyun},
+  booktitle = {Advances in Knowledge Discovery and Data Mining (PAKDD 2026)},
+  series    = {Lecture Notes in Artificial Intelligence},
+  volume    = {16598},
+  pages     = {16--27},
+  year      = {2026},
+  publisher = {Springer},
+  doi       = {10.1007/978-981-92-1462-4_2}
+}
+```
+
 ## Acknowledgments
 
 This work builds upon:
-- [KGDiff](https://github.com/CMACH508/KGDiff)
-- [TargetDiff](https://github.com/guanjq/targetdiff)
-- [PyTorch Geometric](https://github.com/pyg-team/pytorch_geometric)
+- [KGDiff](https://github.com/CMACH508/KGDiff) (MIT License)
+- [TargetDiff](https://github.com/guanjq/targetdiff) (MIT License)
+- [PyTorch Geometric](https://github.com/pyg-team/pytorch_geometric) (MIT License)
+
+## Contact
+
+**Hyoungjoon Park** — ktori1361@yonsei.ac.kr
+[ORCID: 0009-0003-0721-1716](https://orcid.org/0009-0003-0721-1716) ·
+[Homepage](https://dannyjpark.github.io/) ·
+[Google Scholar](https://scholar.google.com/citations?user=TJPGDTUAAAAJ)
+
+Data Mining Laboratory, Department of Computer Science, Yonsei University
+Advisor: Prof. Sanghyun Park
+
+For licensing inquiries, please contact the Yonsei University Industry–Academic Cooperation Foundation.
