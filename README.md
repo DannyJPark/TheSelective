@@ -263,15 +263,6 @@ python analysis/analyze_tmscore_high_filtered.py
 # Analyze LOW TM-score pairs (structurally different proteins)
 python analysis/analyze_tmscore_low_filtered.py
 ```
-
-## Troubleshooting
-
-If you encounter a `WeightsUnpickler` error (e.g., `Unsupported global: GLOBAL easydict.EasyDict` or numpy arrays) when loading checkpoints or `.pt` result files, add `weights_only=False` to the `torch.load()` calls in your scripts (e.g., `sample_diffusion.py`, `dock_generated_ligands.py`):
-
-```python
-ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
-```
-
 ---
 
 ## License and Patent Notice
@@ -336,5 +327,3 @@ This work builds upon:
 
 Data Engineering LAB, Department of Computer Science, Yonsei University
 Advisor: Prof. Sanghyun Park
-
-For licensing inquiries, please contact the Yonsei University Industry–Academic Cooperation Foundation.
