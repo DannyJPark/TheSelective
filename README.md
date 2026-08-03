@@ -1,31 +1,10 @@
 # TheSelective: Dual Affinity-Guided Diffusion for Selective Molecular Generation
 
 [![Paper](https://img.shields.io/badge/PAKDD%202026-Paper-1d4ed8.svg)](https://doi.org/10.1007/978-981-92-1462-4_2)
-[![Patent](https://img.shields.io/badge/Patent-Pending-b45309.svg)](#license-and-patent-notice)
 [![License](https://img.shields.io/badge/Code%20License-MIT-047857.svg)](LICENSE)
-[![Python 3.9](https://img.shields.io/badge/Python-3.9-3776ab.svg)](https://www.python.org/downloads/)
 
 Official implementation of **TheSelective** (PAKDD 2026), a diffusion framework that generates 3D ligands optimized for *selectivity* — maximizing the binding affinity gap between an intended target and a potential off-target.
-
----
-
-## Overview
-
-Existing structure-based drug design (SBDD) models maximize absolute potency toward a single target and leave **selectivity** — the affinity gap between the intended target and off-targets — uncontrolled.
-
-TheSelective addresses two obstacles:
-
-1. **Spatial reference frame mismatch.** Ligands are generated inside the on-target's coordinate system, so the off-target protein — which occupies a separate 3D frame — cannot be modeled by the same complex graph. Noisy intermediate ligands are also chemically invalid, so docking cannot be used during generation.
-2. **Multi-objective divergence.** On- and off-target pockets diverge geometrically and chemically, so guidance must manage a trade-off rather than optimize a single signal.
-
-**Contributions:**
-
-- **Alignment-free off-target prediction.** An asymmetric dual-affinity predictor: a complex-graph head for on-target affinity, and a bidirectional **cross-attention** head over *independent* protein and ligand embeddings for off-target affinity. No docking or 3D alignment required during generation.
-- **Scheduled dual-affinity guidance.** On-target attractive and off-target repulsive gradients are injected into both atom coordinates and atom types. A transition timestep `t_s` removes off-target guidance in later denoising steps, preventing interference during fine-grained refinement.
-
-<p align="center">
-  <em>On-target attractive guidance + off-target repulsive guidance, applied to both coordinates and atom types.</em>
-</p>
+![image](https://drive.google.com/file/d/1H0RMWOYBvJTVHDk7TshVZCmNZPtuVqy0/view?usp=drive_link)
 
 ---
 
@@ -46,8 +25,6 @@ Evaluated on **CrossDocked2020** (~100k training pairs, 100 test proteins; RMSD 
 | KGDiff | -9.290 / -9.309 | -8.446 / -8.466 | 0.844 / 0.727 | **0.527 / 0.537** | 0.548 / 0.550 | 85.6% |
 | **TheSelective** | **-9.969 / -9.958** | -8.994 / -9.001 | **0.975 / 0.923** | 0.495 / 0.500 | 0.534 / 0.535 | 50.2% |
 
-→ **+15.5% (Avg.)** and **+27.0% (Med.)** selectivity over the strongest baseline (KGDiff), with the best on-target docking score.
-
 ### TM-Low — structurally dissimilar off-targets
 
 | Model | On-Dock ↓ | Off-Dock ↑ | Selectivity ↑ | QED ↑ | SA ↑ | Success |
@@ -58,8 +35,6 @@ Evaluated on **CrossDocked2020** (~100k training pairs, 100 test proteins; RMSD 
 | KGDiff | -9.343 / -9.366 | -6.345 / -6.393 | 2.998 / 2.980 | **0.528 / 0.538** | 0.546 / 0.549 | 85.6% |
 | **TheSelective** | **-9.954 / -9.909** | **-6.591 / -6.588** | **3.363 / 3.259** | 0.511 / 0.514 | 0.557 / 0.561 | 56.9% |
 
-→ **+12.2% (Avg.)** and **+9.4% (Med.)** selectivity over KGDiff.
-
 ### Ablation — guidance configuration
 
 | Configuration | TM-High Selectivity ↑ | TM-Low Selectivity ↑ |
@@ -69,17 +44,6 @@ Evaluated on **CrossDocked2020** (~100k training pairs, 100 test proteins; RMSD 
 | Off-Target Guide only | 0.036 / 0.047 | 2.251 / 2.216 |
 | Dual Guide (unscheduled) | 0.628 / 0.588 | 2.953 / 2.890 |
 | **Dual Guide, Scheduled** | **0.975 / 0.923** | **3.363 / 3.259** |
-
-Temporal scheduling alone lifts TM-High selectivity from **0.628 → 0.975 (+55.3%)**: the model first establishes a selectivity-aware scaffold, then refines on-target binding without continued off-target perturbation.
-
-### Case studies
-
-| Pair | On-Target | Off-Target | Reference Δ | TheSelective Δ |
-|---|---|---|---|---|
-| TM-High | 4XLI (ABL2 kinase) | 4IWQ (TBK1) | 0.389 | **2.505** |
-| TM-Low | 4Z2G (chitinase B) | 2GNS (phospholipase A₂) | 1.611 | **3.704** |
-
-> **Known limitation.** The dual objective reduces the reconstruction success rate (50.2% / 56.9% vs. 85.6% for KGDiff), reflecting the inherent tension between on-target potency and off-target avoidance. Integrating validity-aware constraints into the guidance process is left for future work.
 
 ---
 
@@ -323,7 +287,7 @@ ckpt = torch.load(args.ckpt, map_location=args.device, weights_only=False)
 
 ### Patent
 
-The method implemented in this repository is covered by a **pending patent application**:
+This work was supported by the National Research Foundation of Korea (NRF), funded by the Ministry of Science and ICT (No. RS-2023-00229822).
 
 | | |
 |---|---|
@@ -332,23 +296,10 @@ The method implemented in this repository is covered by a **pending patent appli
 | **Title** | Method and system for generating selective ligand |
 | **Applicant / Assignee** | Yonsei University Industry–Academic Cooperation Foundation |
 | **Inventors** | Sanghyun Park, Hyoungjoon Park |
-| **Status** | Pending |
-
-This work was supported by the National Research Foundation of Korea (NRF), funded by the Ministry of Science and ICT (No. RS-2023-00229822).
 
 ### Source code — MIT License
 
 The source code in this repository is released under the **MIT License**. See [`LICENSE`](LICENSE) for the full text.
-
-### Patent rights — expressly reserved
-
-**The MIT License above is a copyright license covering the source code only. It does not grant, and shall not be construed as granting, any license under any patent.**
-
-No license under the pending patent application listed above, or under any patent issuing from it, is granted — expressly, by implication, by estoppel, or otherwise — by the publication of this source code or by the MIT License applied to it. Practicing the claimed method, including by executing, modifying, or distributing this code, may require a separate patent license from the assignee.
-
-All patent rights are reserved by the Yonsei University Industry–Academic Cooperation Foundation.
-
-**For patent licensing inquiries, please contact the assignee.**
 
 ### Third-party code
 
