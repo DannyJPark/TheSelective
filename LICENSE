@@ -1,0 +1,47 @@
+MIT License
+
+Copyright (c) 2026 Yonsei University Industry-Academic Cooperation Foundation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+PATENT NOTICE
+
+This license is a copyright license only. It grants no rights under any patent.
+
+The method implemented by this Software is the subject of a pending patent
+application (KR 10-2026-0132757, priority KR 10-2025-0188859), owned by the
+Yonsei University Industry-Academic Cooperation Foundation. No license under
+that application, or under any patent issuing from it, is granted expressly,
+by implication, by estoppel, or otherwise. Practicing the claimed method may
+require a separate patent license from the owner.
+
+---
+
+THIRD-PARTY NOTICES
+
+This Software incorporates code from the following MIT-licensed projects:
+
+  KGDiff      - Copyright (c) 2023 CMACH508
+                https://github.com/CMACH508/KGDiff
+  TargetDiff  - Copyright (c) 2023 Jiaqi Guan
+                https://github.com/guanjq/targetdiff
+
+Their original MIT License terms apply to the corresponding portions.
