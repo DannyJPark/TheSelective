@@ -35,16 +35,6 @@ Evaluated on **CrossDocked2020** (~100k training pairs, 100 test proteins; RMSD 
 | KGDiff | -9.343 / -9.366 | -6.345 / -6.393 | 2.998 / 2.980 | **0.528 / 0.538** | 0.546 / 0.549 | 85.6% |
 | **TheSelective** | **-9.954 / -9.909** | **-6.591 / -6.588** | **3.363 / 3.259** | 0.511 / 0.514 | 0.557 / 0.561 | 56.9% |
 
-### Ablation — guidance configuration
-
-| Configuration | TM-High Selectivity ↑ | TM-Low Selectivity ↑ |
-|---|---|---|
-| No Guide | 0.165 / 0.112 | 2.121 / 2.064 |
-| On-Target Guide only | 0.636 / 0.536 | 2.843 / 2.756 |
-| Off-Target Guide only | 0.036 / 0.047 | 2.251 / 2.216 |
-| Dual Guide (unscheduled) | 0.628 / 0.588 | 2.953 / 2.890 |
-| **Dual Guide, Scheduled** | **0.975 / 0.923** | **3.363 / 3.259** |
-
 ---
 
 ## Installation
