@@ -4,7 +4,8 @@
 [![License](https://img.shields.io/badge/Code%20License-MIT-047857.svg)](LICENSE)
 
 Official implementation of **TheSelective** (PAKDD 2026), a diffusion framework that generates 3D ligands optimized for *selectivity* — maximizing the binding affinity gap between an intended target and a potential off-target.
-![image](https://drive.google.com/file/d/1H0RMWOYBvJTVHDk7TshVZCmNZPtuVqy0/view?usp=drive_link)
+
+![image](Main_Figure_fixed2.png)
 
 ---
 
