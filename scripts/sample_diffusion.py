@@ -76,7 +76,7 @@ def main():
     # Guidance options
     parser.add_argument('--guide_mode', type=str, default='head1_head2_staged',
                        choices=['no_guide', 'joint', 'dual_head_guidance', 'head1_head2_sequential', 'head1_head2_staged', 'head1_only'],
-                       help='Guidance mode: no_guide, joint, dual_head_guidance (same model), head1_head2_sequential (Head1:interaction, Head2:cross-attn), head1_head2_staged (Head1 only for t>=500, Head1+Head2 for t<500), head1_only (original KGDiff)')
+                       help='Guidance mode: no_guide, joint, dual_head_guidance (same model), head1_head2_sequential (Head1:interaction, Head2:cross-attn), head1_head2_staged (Head1+Head2 for t>=500, Head1 only for t<500), head1_only (original KGDiff)')
     parser.add_argument('--head1_type_grad_weight', type=float, default=0.,
                        help='Type gradient weight for head1 (on-target)')
     parser.add_argument('--head1_pos_grad_weight', type=float, default=0.,
@@ -214,18 +214,17 @@ def main():
     all_pred_exp_on_traj, all_pred_exp_off_traj = [], []  # Trajectory for visualization
     time_list = []
 
-    num_batch = int(np.ceil(args.num_samples / args.batch_size))
+    def run_batch(n_data):
+        """Sample one batch of n_data ligands. Returns (model output, ligand_num_atoms).
 
-    for batch_idx in tqdm(range(num_batch), desc='Sampling batches'):
-        n_data = args.batch_size if batch_idx < num_batch - 1 else args.num_samples - args.batch_size * (num_batch - 1)
-
+        All GPU tensors are locals of this function, so they are released together
+        with the exception frame when sampling fails with CUDA out of memory.
+        """
         # Create on-target batch
         batch_on = Batch.from_data_list(
             [on_target_data.clone() for _ in range(n_data)],
             follow_batch=FOLLOW_BATCH
         ).to(args.device)
-
-        t1 = time.time()
 
         # Memory optimization: Clear cache before processing
         if args.device == 'cuda':
@@ -279,9 +278,49 @@ def main():
             w_on=args.w_on,
             w_off=args.w_off
         )
+        return r, ligand_num_atoms
+
+    # On CUDA out of memory, halve the batch and retry the same share (2026-10-26).
+    # GPU memory needed depends not only on batch size but also on the target (pocket size) and the
+    # randomly sampled ligand atom counts: target pair 70/80 once failed at batch size 4 (2026-03-14).
+    # The reduced batch size is kept for the remaining samples of this target.
+    batch_size = args.batch_size
+    batch_sizes_used = []
+    gpu_peaks = []  # peak GPU memory allocated per batch (GiB)
+    oom_retries = 0
+    pbar = tqdm(total=args.num_samples, desc='Sampling samples')
+    gpu_peak = lambda: torch.cuda.max_memory_allocated() / 2**30 if args.device == 'cuda' else 0.
+
+    while len(all_pred_pos) < args.num_samples:
+        n_data = min(batch_size, args.num_samples - len(all_pred_pos))
+        t1 = time.time()
+        if args.device == 'cuda':
+            torch.cuda.reset_peak_memory_stats()
+        oom = False
+        try:
+            r, ligand_num_atoms = run_batch(n_data)
+        except RuntimeError as e:
+            if 'out of memory' not in str(e) or n_data == 1:
+                raise
+            oom = True
+        if oom:
+            peak = gpu_peak()
+            # The failed attempt's tensors are released once the exception is gone
+            gc.collect()
+            if args.device == 'cuda':
+                torch.cuda.empty_cache()
+            oom_retries += 1
+            batch_size = max(1, n_data // 2)
+            logger.warning(f'CUDA out of memory at batch size {n_data} (GPU peak {peak:.1f} GiB); '
+                           f'retrying with batch size {batch_size} (retry {oom_retries})')
+            continue
 
         t2 = time.time()
         time_list.append(t2 - t1)
+        batch_sizes_used.append(n_data)
+        gpu_peaks.append(round(gpu_peak(), 2))
+        logger.info(f'Batch of {n_data}: {t2 - t1:.0f} s, GPU peak allocated {gpu_peaks[-1]:.1f} GiB, '
+                    f'ligand atoms {ligand_num_atoms}')
 
         # Unbatch results
         ligand_cum_atoms = np.cumsum([0] + ligand_num_atoms)
@@ -322,9 +361,13 @@ def main():
             all_pred_exp_off_traj.append(exp_off_traj_batch)
 
         # Memory cleanup
-        del batch_on, r
+        del r
         if args.device == 'cuda':
             torch.cuda.empty_cache()
+        pbar.update(n_data)
+    pbar.close()
+    if oom_retries:
+        logger.info(f'Batch sizes used after CUDA out of memory: {batch_sizes_used} ({oom_retries} retries)')
 
     # Unbatch exp trajectories for per-sample saving
     all_exp_on_traj_per_sample = []
@@ -362,6 +405,9 @@ def main():
             'exp_on': all_pred_exp_on,
             'exp_off': all_pred_exp_off,
             'time': time_list,
+            'batch_sizes': batch_sizes_used,
+            'gpu_peak_gib': gpu_peaks,
+            'oom_retries': oom_retries,
             'args': vars(args)
         }, f)
 
@@ -416,7 +462,7 @@ def main():
                     head2_label = 'Head2 (Off-target, NO interaction, cross-attn)'
                 elif args.guide_mode == 'head1_head2_staged':
                     head1_label = 'Head1 (On-target, WITH interaction, ALL steps)'
-                    head2_label = 'Head2 (Off-target, NO interaction, t<500 only)'
+                    head2_label = 'Head2 (Off-target, NO interaction, t>=500 only)'
                 else:
                     head1_label = 'Head1 (On-target)'
                     head2_label = 'Head2 (Off-target)'

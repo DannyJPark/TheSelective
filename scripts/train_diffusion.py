@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
 from scipy import stats
 from torch.nn.utils import clip_grad_norm_
+from torch_geometric.data import Batch
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from tqdm.auto import tqdm
@@ -79,7 +80,12 @@ def main():
     parser.add_argument('--config', type=str, default='./configs/training.yml')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--logdir', type=str, default='./logs_diffusion')
-    parser.add_argument('--ckpt', type=str, default='')
+    parser.add_argument('--ckpt', type=str, default='',
+                        help='Resume from this checkpoint: model, optimizer, scheduler, iteration and best val loss')
+    parser.add_argument('--warm_start', action='store_true',
+                        help='With --ckpt, load only the model weights; optimizer, scheduler and iteration start fresh')
+    parser.add_argument('--max_atoms_per_batch', type=int, default=None,
+                        help='Overrides config train.max_atoms_per_batch (0 disables splitting)')
     parser.add_argument('--tag', type=str, default='')
     parser.add_argument('--train_report_iter', type=int, default=200)
     # Wandb options
@@ -185,13 +191,14 @@ def main():
     logger.info(f'Training: {len(train_set)} Validation: {len(val_set)} Test: {len(test_set)}')
 
     collate_exclude_keys = ['ligand_nbh_list']
-    train_iterator = utils_train.inf_iterator(DataLoader(
+    # The train loader yields lists of samples; train() collates them itself so that a batch with too
+    # many atoms can be split into smaller micro-batches (see max_atoms_per_batch below).
+    train_iterator = utils_train.inf_iterator(torch.utils.data.DataLoader(
         train_set,
         batch_size=config.train.batch_size,
         shuffle=True,
         num_workers=config.train.num_workers,
-        follow_batch=FOLLOW_BATCH,
-        exclude_keys=collate_exclude_keys
+        collate_fn=list
     ))
     val_loader = DataLoader(
         val_set, config.train.batch_size, shuffle=False,
@@ -215,16 +222,62 @@ def main():
     scheduler = utils_train.get_scheduler(config.train.scheduler, optimizer)
 
     start_it = 0
+    best_loss, best_iter = None, None
     if args.ckpt:
         model.load_state_dict(ckpt['model'])
-        logger.info('Model weights loaded from checkpoint')
+        if args.warm_start:
+            logger.info('Model weights loaded from checkpoint (warm start: optimizer, scheduler and iteration start fresh)')
+        else:
+            optimizer.load_state_dict(ckpt['optimizer'])
+            scheduler.load_state_dict(ckpt['scheduler'])
+            start_it = ckpt['iteration'] + 1
+            # Checkpoints saved before 2026-10-26 have no best_loss; then the first validation saves a new best.
+            best_loss, best_iter = ckpt.get('best_loss'), ckpt.get('best_iter')
+            logger.info(f'Resumed from iteration {ckpt["iteration"]} (lr {optimizer.param_groups[0]["lr"]:.6f}, '
+                        f'best val loss {best_loss} at iter {best_iter})')
+
+    # GPU memory of a training step grows almost linearly with the protein + ligand atoms of the
+    # micro-batch (dual-head training.yml on a 24 GB RTX 3090, 2026-10-26: ~6.0 GiB per 1,000 atoms,
+    # 3,494 atoms -> 21.06 GiB peak; the 4 largest train samples together, 6,935 atoms, ran out of memory).
+    # A batch above the limit is split into micro-batches, each loss weighted by its share of the batch's
+    # graphs, so the gradient matches the unsplit batch for losses averaged over graphs.
+    max_atoms_per_batch = args.max_atoms_per_batch
+    if max_atoms_per_batch is None:
+        max_atoms_per_batch = getattr(config.train, 'max_atoms_per_batch', None)
+    logger.info(f'Max atoms per micro-batch: {max_atoms_per_batch or "no limit"}')
+
+    def split_by_atoms(data_list):
+        """Group samples in order so each group has at most max_atoms_per_batch protein + ligand atoms."""
+        if not max_atoms_per_batch:
+            return [data_list]
+        groups, group, group_atoms = [], [], 0
+        for data in data_list:
+            n_atoms = data.protein_pos.size(0) + data.ligand_pos.size(0)
+            if group and group_atoms + n_atoms > max_atoms_per_batch:
+                groups.append(group)
+                group, group_atoms = [], 0
+            group.append(data)
+            group_atoms += n_atoms
+        groups.append(group)
+        return groups
 
     def train(it):
         model.train()
         optimizer.zero_grad()
 
+        micro_batches = []  # (samples, weight = share of the batch's graphs)
         for _ in range(config.train.n_acc_batch):
-            batch = next(train_iterator).to(args.device)
+            data_list = next(train_iterator)
+            groups = split_by_atoms(data_list)
+            if len(groups) > 1:
+                logger.info(f'[Train] Iter {it}: batch of {len(data_list)} split into micro-batches of '
+                            f'{[len(g) for g in groups]} samples, atoms '
+                            f'{[sum(d.protein_pos.size(0) + d.ligand_pos.size(0) for d in g) for g in groups]}')
+            micro_batches += [(group, len(group) / len(data_list)) for group in groups]
+
+        for data_group, weight in micro_batches:
+            batch = Batch.from_data_list(
+                data_group, follow_batch=FOLLOW_BATCH, exclude_keys=collate_exclude_keys).to(args.device)
 
             # Add noise to protein positions
             protein_noise = torch.randn_like(batch.protein_pos) * config.train.pos_noise_std
@@ -281,15 +334,8 @@ def main():
                 loss_head1 = loss_exp
                 loss_head2 = torch.tensor(0.0)
 
-            # === Physics-informed vdW loss with PIDiff-style curriculum ramp ===
-            # total vdW weight = loss_vdw_weight * (it / vdw_ramp_iters)   [uncapped, PIDiff-style]
-            loss_vdw = results.get('loss_vdw', None)
-            vdw_weight = getattr(config.model, 'loss_vdw_weight', 0.)
-            if loss_vdw is not None and vdw_weight > 0:
-                ramp_iters = getattr(config.train, 'vdw_ramp_iters', 200000)
-                loss = loss + vdw_weight * (it / ramp_iters) * loss_vdw
-
-            loss = loss / config.train.n_acc_batch
+            loss_total = loss  # this micro-batch's loss, for logging
+            loss = loss * weight / config.train.n_acc_batch
             loss.backward()
 
         orig_grad_norm = clip_grad_norm_(model.parameters(), config.train.max_grad_norm)
@@ -299,14 +345,14 @@ def main():
             if train_mode == 'generation_only':
                 logger.info(
                     '[Train] Iter %d | Loss %.6f (pos %.6f | v %.6f) | Lr: %.6f | Grad: %.4f' % (
-                        it, loss * config.train.n_acc_batch, loss_pos, loss_v,
+                        it, loss_total, loss_pos, loss_v,
                         optimizer.param_groups[0]['lr'], orig_grad_norm
                     )
                 )
             elif use_dual_head:
                 logger.info(
                     '[Train] Iter %d | Loss %.6f (pos %.6f | v %.6f | exp %.6f | h1 %.6f | h2 %.6f) | Lr: %.6f | Grad: %.4f' % (
-                        it, loss * config.train.n_acc_batch, loss_pos, loss_v, loss_exp,
+                        it, loss_total, loss_pos, loss_v, loss_exp,
                         loss_head1, loss_head2,
                         optimizer.param_groups[0]['lr'], orig_grad_norm
                     )
@@ -314,7 +360,7 @@ def main():
             else:
                 logger.info(
                     '[Train] Iter %d | Loss %.6f (pos %.6f | v %.6f | exp %.6f) | Lr: %.6f | Grad: %.4f' % (
-                        it, loss * config.train.n_acc_batch, loss_pos, loss_v, loss_exp,
+                        it, loss_total, loss_pos, loss_v, loss_exp,
                         optimizer.param_groups[0]['lr'], orig_grad_norm
                     )
                 )
@@ -329,7 +375,7 @@ def main():
             # Wandb logging
             if use_wandb:
                 wandb_log = {
-                    'train/loss': float(loss * config.train.n_acc_batch),
+                    'train/loss': float(loss_total),
                     'train/loss_pos': float(loss_pos),
                     'train/loss_v': float(loss_v),
                     'train/loss_exp': float(loss_exp),
@@ -340,15 +386,6 @@ def main():
                 if use_dual_head:
                     wandb_log['train/loss_head1'] = float(loss_head1)
                     wandb_log['train/loss_head2'] = float(loss_head2)
-                # Physics-informed vdW loss (single-head + physics path). Log the raw
-                # vdW energy, the PIDiff-style ramp factor, and the effective (weighted)
-                # term actually added to the total loss.
-                if loss_vdw is not None:
-                    ramp_iters = getattr(config.train, 'vdw_ramp_iters', 200000)
-                    vdw_ramp = it / ramp_iters
-                    wandb_log['train/loss_vdw'] = float(loss_vdw)
-                    wandb_log['train/vdw_ramp'] = vdw_ramp
-                    wandb_log['train/loss_vdw_weighted'] = float(vdw_weight * vdw_ramp * loss_vdw)
                 wandb.log(wandb_log, step=it)
 
     def validate(it):
@@ -544,8 +581,29 @@ def main():
         writer.flush()
         return avg_loss
 
+    def save_checkpoint(path, it):
+        # Write to a temporary file first so a crash mid-save never leaves a broken checkpoint at path
+        tmp_path = path + '.tmp'
+        torch.save({
+            'config': config,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict(),
+            'iteration': it,
+            'best_loss': best_loss,
+            'best_iter': best_iter,
+        }, tmp_path)
+        os.replace(tmp_path, path)
+
+    # Checkpoints: the best one ({it}.pt, previous best deleted), latest.pt (overwritten at every
+    # validation, for resuming with --ckpt) and periodic/{it}.pt every keep_ckpt_freq iterations (kept).
+    latest_ckpt_path = os.path.join(ckpt_dir, 'latest.pt')
+    keep_ckpt_freq = getattr(config.train, 'keep_ckpt_freq', 50000)
+    periodic_ckpt_dir = os.path.join(ckpt_dir, 'periodic')
+    if keep_ckpt_freq:
+        os.makedirs(periodic_ckpt_dir, exist_ok=True)
+
     try:
-        best_loss, best_iter = None, None
         best_ckpt_path = None
         for it in range(start_it, config.train.max_iters):
             train(it)
@@ -564,13 +622,7 @@ def main():
                     best_loss, best_iter = val_loss, it
                     ckpt_path = os.path.join(ckpt_dir, '%d.pt' % it)
                     best_ckpt_path = ckpt_path
-                    torch.save({
-                        'config': config,
-                        'model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'scheduler': scheduler.state_dict(),
-                        'iteration': it,
-                    }, ckpt_path)
+                    save_checkpoint(ckpt_path, it)
                     logger.info(f'[Checkpoint] Saved new best checkpoint: {ckpt_path}')
 
                     # Log best model info to wandb
@@ -579,6 +631,13 @@ def main():
                         wandb.run.summary['best_iter'] = best_iter
                 else:
                     logger.info(f'[Validate] Val loss not improved. Best: {best_loss:.6f} at iter {best_iter}')
+
+                save_checkpoint(latest_ckpt_path, it)
+
+            if keep_ckpt_freq and it > 0 and it % keep_ckpt_freq == 0:
+                ckpt_path = os.path.join(periodic_ckpt_dir, '%d.pt' % it)
+                save_checkpoint(ckpt_path, it)
+                logger.info(f'[Checkpoint] Saved periodic checkpoint: {ckpt_path}')
 
     except KeyboardInterrupt:
         logger.info('Training interrupted by user.')

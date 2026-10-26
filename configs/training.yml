@@ -59,8 +59,16 @@ train:
   batch_size: 2
   num_workers: 0
   n_acc_batch: 2
+  # Batches with more protein + ligand atoms are split into micro-batches (same gradient).
+  # 3,494 atoms -> 21.06 GiB peak on a 24 GB RTX 3090; the largest train sample has 1,761 atoms.
+  max_atoms_per_batch: 3500
   max_iters: 10000000
   val_freq: 1000
+  # Checkpoints in <logdir>/<run>/checkpoints/:
+  #   {it}.pt           best val loss so far (the previous best is deleted)
+  #   latest.pt         overwritten at every validation (every val_freq); resume with --ckpt latest.pt
+  #   periodic/{it}.pt  saved every keep_ckpt_freq iterations and kept (0 disables)
+  keep_ckpt_freq: 50000
   pos_noise_std: 0.1
   max_grad_norm: 8.0
   bond_loss_weight: 1.0
